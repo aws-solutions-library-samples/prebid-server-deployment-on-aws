@@ -12,7 +12,7 @@
 # -------------------------------------------------------------------------------------------------------------------------------------------------------
 
 # Build stage
-FROM public.ecr.aws/docker/library/alpine:3.21 AS build
+FROM public.ecr.aws/docker/library/alpine:3.22.1 AS build
 
 # Install required dependencies
 RUN wget -O /etc/apk/keys/amazoncorretto.rsa.pub https://apk.corretto.aws/amazoncorretto.rsa.pub && \
@@ -51,7 +51,7 @@ RUN git clone --single-branch --branch master --depth 1 https://github.com/prebi
     rm -rf ~/.m2/ && rm -rf /tmp/*
 
 # Deploy image
-FROM public.ecr.aws/docker/library/alpine:3.21 AS deploy
+FROM public.ecr.aws/docker/library/alpine:3.22.1 AS deploy
 WORKDIR /prebid-server-java
 
 # Copy only the minimal required files
