@@ -173,7 +173,7 @@ If you'd like to use a different container:
 * Build and host the solution assets for installation in your account using the process described above
 * Change to the `deployment/global-s3-assets` folder on the build workstation
 * Open the file `prebid-server-deployment-on-aws.template` in an editor
-* Find the line in the template under the Task Definition resource that is `"Image": "public.ecr.aws/aws-solutions/prebid-server:v1.1.4",`
+* Find the line in the template under the Task Definition resource that is `"Image": "public.ecr.aws/aws-solutions/prebid-server:v1.1.5",`
 * Update the Image property value with your container image URI
 * Create the stack by uploading the changed template to the CloudFormation console
 
