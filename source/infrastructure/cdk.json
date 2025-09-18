@@ -30,7 +30,7 @@
         "@aws-cdk/aws-s3:serverAccessLogsUseBucketPolicy": true,
         "SOLUTION_NAME": "Prebid Server Deployment on AWS",
         "SOLUTION_ID": "SO0248",
-        "SOLUTION_VERSION": "v1.1.5",
+        "SOLUTION_VERSION": "v1.1.6",
         "METRICS_NAMESPACE": "prebid-server-deployment-on-aws-metrics",
         "BUCKET_NAME": "BUCKET_NAME"
     }

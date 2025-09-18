@@ -1,9 +1,9 @@
 {
   "_comment_dependencies": "Dependency versions below are pinned for CVE mitigation. When upgrading, verify these versions still address current CVEs:",
-  "_comment_netty": "netty.version=4.2.4.Final addresses CVE-2024-47535 and related Netty vulnerabilities",
+  "_comment_netty": "netty.version=4.2.5.Final addresses CVE-2025-58056 and related Netty vulnerabilities",
   "_comment_commons_lang3": "commons-lang3.version=3.18.0 addresses CVE-2024-47554 in Apache Commons Lang",
-  "_comment_spring_framework": "spring-framework.version=6.2.7 addresses multiple Spring Framework CVEs",
+  "_comment_spring_framework": "spring-framework.version=6.2.11 addresses multiple Spring Framework CVEs",
   "_comment_spring_boot": "spring.boot.version=3.4.5 addresses Spring Boot security vulnerabilities",
   "GIT_TAG_VERSION": "3.28.0",
-  "MVN_CLI_OPTIONS": "-Dmaven.test.skip -Dnetty.version=4.2.4.Final -Dcommons-lang3.version=3.18.0 -Dspring-framework.version=6.2.7 -Dspring.boot.version=3.4.5"
+  "MVN_CLI_OPTIONS": "-Dmaven.test.skip -Dnetty.version=4.2.5.Final -Dcommons-lang3.version=3.18.0 -Dspring-framework.version=6.2.11 -Dspring.boot.version=3.4.5"
 }

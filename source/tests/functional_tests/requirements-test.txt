@@ -1,5 +1,5 @@
 pytest
-requests
+requests>=2.32.4
 boto3
 pytest-ordering
 pytest-repeat

@@ -25,7 +25,7 @@ To get the version of the solution, you can look at the description of the creat
     "Environment": {
       "Variables": {
         "SOLUTION_ID": "SO0248",
-        "SOLUTION_VERSION": "v1.1.5"
+        "SOLUTION_VERSION": "v1.1.6"
       }
     },
 ```
@@ -34,7 +34,7 @@ This information is also provided in `source/infrastructure/cdk.json`:
 
 ```json
     "SOLUTION_ID": "SO0248",
-    "SOLUTION_VERSION": "v1.1.5",
+    "SOLUTION_VERSION": "v1.1.6",
 ```
 
 
