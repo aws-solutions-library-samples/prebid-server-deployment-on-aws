@@ -54,4 +54,5 @@ def test_efs_cleanup():
             "logs": mock_def,
             "metrics": mock_def,
         },
+        operational_metrics_layer=mock_def,
     )

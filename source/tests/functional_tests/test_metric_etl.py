@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 # Constants
 DEFAULT_TIMEOUT = 7200  # 2 hours
 POLLING_INTERVAL = 300  # 5 minutes
-MAX_ATHENA_RETRIES = 30
+MAX_ATHENA_RETRIES = 60
 
 @dataclass
 class ETLConfig:
@@ -246,8 +246,8 @@ for metric_name, metric_config in METRIC_TABLES.items():
 
 # Special case for histogram test due to additional conditions
 @pytest.mark.skipif(
-    not os.environ.get("AMT_ADAPTER_ENABLED") and 
-    not os.environ.get("AMT_BIDDING_SERVER_SIMULATOR_ENDPOINT"),
+    not (os.environ.get("AMT_ADAPTER_ENABLED") and 
+    os.environ.get("AMT_BIDDING_SERVER_SIMULATOR_ENDPOINT")),
     reason="Histogram test runs with amt adapter enabled."
 )
 @pytest.mark.skipif(

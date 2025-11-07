@@ -9,7 +9,7 @@
 # Paramenters:
 #  - source-bucket-base-name: Name for the S3 bucket location where the template will source the Lambda
 #    code from. The template will append '-[region_name]' to this bucket name.
-#    For example: ./build-s3-dist.sh solutions v1.1.4
+#    For example: ./build-s3-dist.sh solutions v1.2.0
 #    The template will then expect the source code to be located in the solutions-[region_name] bucket
 #
 #  - solution-name: name of the solution for consistency
@@ -21,7 +21,7 @@
 # Check to see if input has been provided:
 if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then
     echo "Please provide the base source bucket name, trademark approved solution name and version where the lambda code will eventually reside."
-    echo "For example: ./build-s3-dist.sh solutions trademarked-solution-name v1.1.6"
+    echo "For example: ./build-s3-dist.sh solutions trademarked-solution-name v1.2.0"
     exit 1
 fi
 

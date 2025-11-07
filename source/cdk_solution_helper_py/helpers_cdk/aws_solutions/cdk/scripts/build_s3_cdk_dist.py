@@ -187,7 +187,7 @@ def validate_version_code(ctx, param, value):
         return value
     else:
         raise click.BadParameter(
-            "please specifiy major, minor and patch versions, e.g. v1.1.4"
+            "please specifiy major, minor and patch versions, e.g. v1.2.0"
         )
 
 
@@ -247,7 +247,6 @@ def source_code_package(ctx, ignore, solution_name):
         "CODE_OF_CONDUCT.md",
         "CONTRIBUTING.md",
         "CHANGELOG.md",
-        "SECURITY.md",
         ".gitignore",
         "solution-manifest.yaml",
     ]

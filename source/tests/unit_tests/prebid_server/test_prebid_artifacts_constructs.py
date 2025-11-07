@@ -12,8 +12,6 @@ import uuid
 from unittest.mock import MagicMock
 from unit_tests.test_commons import mocked_common_services, FakeClass, reload_module
 
-
-
 @mocked_common_services(
     add_patch=[
         "prebid_server.prebid_artifacts_constructs.super",

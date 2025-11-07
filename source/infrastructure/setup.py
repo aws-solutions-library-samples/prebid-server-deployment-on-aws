@@ -16,7 +16,7 @@ VERSION = cdk_json["context"]["SOLUTION_VERSION"]
 setuptools.setup(
     name="infrastructure",
     version=VERSION,
-    description="Deploy and use Prebid Server Deployment on AWS",
+    description="Guidance for Deploying a Prebid Server on AWS",
     long_description=long_description,
     long_description_content_type="text/markdown",
     author="AWS Solutions Builders",

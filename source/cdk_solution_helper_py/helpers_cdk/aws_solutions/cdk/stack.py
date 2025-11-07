@@ -65,4 +65,3 @@ class SolutionStack(Stack):
             description=f"({self.solution_id}) - {self.description}. Version {self.solution_version}",
             filename=template_filename,
         )
-        Aspects.of(self).add(MetricsAspect(self))

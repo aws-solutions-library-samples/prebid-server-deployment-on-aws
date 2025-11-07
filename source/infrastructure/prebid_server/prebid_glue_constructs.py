@@ -5,7 +5,7 @@ import os
 import json
 from pathlib import Path
 
-from aws_cdk import Aws, RemovalPolicy, Duration
+from aws_cdk import Aws, RemovalPolicy, Duration, CustomResource
 from aws_cdk import (
     aws_iam as iam,
     aws_s3 as s3,
@@ -21,12 +21,12 @@ from aws_solutions.cdk.aws_lambda.python.function import SolutionsPythonFunction
 from aws_solutions.cdk.aws_lambda.layers.aws_lambda_powertools import PowertoolsLayer
 from aws_lambda_layers.aws_solutions.layer import SolutionsLayer
 from .prebid_artifacts_constructs import ArtifactsManager
-import prebid_server.stack_constants as globals
+import prebid_server.stack_constants as stack_constants
 
 PUT_OBJECT_ACTION = "s3:PutObject"
 DATASYNC_SERVICE_PRINCIPAL = iam.ServicePrincipal("datasync.amazonaws.com")
 S3_READ_ACTIONS = ["s3:GetObject", "s3:ListBucket"]
-ACCOUNT_ID_CONDITION = {"StringEquals": {globals.RESOURCE_NAMESPACE: [Aws.ACCOUNT_ID]}}
+ACCOUNT_ID_CONDITION = {"StringEquals": {stack_constants.RESOURCE_NAMESPACE: [Aws.ACCOUNT_ID]}}
 GLUE_IAM_SERVICE_PRINCIPAL = "glue.amazonaws.com"
 
 
@@ -34,10 +34,10 @@ class S3Location(Construct):
     def __init__(
             self,
             scope: Construct,
-            id: str,
+            s3_location_id: str,
             s3_bucket: s3.Bucket,
     ):
-        super().__init__(scope, id)
+        super().__init__(scope, s3_location_id)
 
         self.s3_bucket = s3_bucket
         self.S3_PERMISSIONS = [
@@ -52,9 +52,9 @@ class S3Location(Construct):
         ]
         self.S3_PERMISSIONS.extend(S3_READ_ACTIONS)
 
-        self.s3_location = self._create_s3_location()
+        self.s3_location = self._create_s3_location(s3_location_id)
 
-    def _create_s3_location(self):
+    def _create_s3_location(self, s3_location_id):
         """
         This function creates an S3 Location resource used for DataSync Tasks involving S3
         """
@@ -110,10 +110,12 @@ class S3Location(Construct):
                 bucket_access_role_arn=datasync_s3_role.role_arn
             ),
         )
-        # For backward compatibility, maintain the logical ID of S3 location of the bucket storing Prebid metrics
-        # across solution versions to prevent creation of a new S3 location during stack updates.
-        # DataSyncMetricsS3Location7EAA1172 is the logical id for the bucket in the v1.0.x solution template.
-        datasync_s3_location.override_logical_id("DataSyncMetricsS3Location7EAA1172")
+
+        if s3_location_id == "S3Location":
+            # For backward compatibility, maintain the logical ID of S3 location of the bucket storing Prebid metrics
+            # across solution versions to prevent creation of a new S3 location during stack updates.
+            # DataSyncMetricsS3Location7EAA1172 is the logical id for the bucket in the v1.0.x solution template.
+            datasync_s3_location.override_logical_id("DataSyncMetricsS3Location7EAA1172")
 
         datasync_s3_location.node.add_dependency(self.s3_bucket)
         datasync_s3_location.node.add_dependency(bucket_policy)
@@ -128,14 +130,16 @@ class GlueEtl(Construct):
             id: str,
             artifacts_construct: ArtifactsManager,
             script_file_name: str,
+            operational_metrics_layer: LayerVersion,
     ):
         super().__init__(scope, id)
 
         self.id = id
         self._resource_prefix = Aws.STACK_NAME
         self.artifacts_construct = artifacts_construct
-        self.artifacts_bucket = artifacts_construct.bucket
+        self.artifacts_bucket = artifacts_construct.artifacts_bucket
         self.file_name = script_file_name
+        self.metrics_layer = operational_metrics_layer
 
         self.GLUE_RESOURCE_PREFIX = f"{Aws.STACK_NAME}-{Aws.REGION}-{self.id.lower()}"
         self.GLUE_JOB_NAME = f"{self.GLUE_RESOURCE_PREFIX}-job"
@@ -146,83 +150,84 @@ class GlueEtl(Construct):
         with open(f"{fp}/prebid_metrics_schema.json") as f:
             self.TABLE_SCHEMA_MAP = json.load(f)
 
-        self._create_source_bucket()
-        self.s3_location = S3Location(self, "S3Location", s3_bucket=self.source_bucket)
+        self._create_source_buckets()
+        self.metrics_s3_location = S3Location(self, "S3Location", s3_bucket=self.metrics_source_bucket)
+        # analytics logic is not implemented for glue yet, but keeping the s3 location obj here for future ETL work
+        self.analytics_s3_location = S3Location(self, "AnalyticsS3Location", s3_bucket=self.analytics_source_bucket)
         self._create_lamda_layer()
         self.output_bucket = self._create_output_bucket()
         self._create_glue_database()
         self.glue_job = self._create_glue_job()
         self.lambda_function = self._create_glue_job_trigger()
 
-    def _create_source_bucket(self):
-        # We initiate this class for the DataSync Metrics Task to
-        datasync_logs_bucket_key = kms.Key(
-            self,
-            id="DataSyncMetricsBucketKey",
-            description=f"{self.id} Bucket Key",
-            enable_key_rotation=True,
-            pending_window=Duration.days(30),
-            removal_policy=RemovalPolicy.RETAIN,
-        )
-        kms_bucket_policy = iam.PolicyStatement(
-            sid=f"Allow access to {self.id}Bucket",
-            principals=[
-                iam.ServicePrincipal("s3.amazonaws.com"),
-                DATASYNC_SERVICE_PRINCIPAL,
-                iam.ServicePrincipal(GLUE_IAM_SERVICE_PRINCIPAL),
-            ],
-            effect=iam.Effect.ALLOW,
-            actions=[
-                "kms:Encrypt",
-                "kms:Decrypt",
-                "kms:ReEncrypt*",
-                "kms:GenerateDataKey*",
-                "kms:CreateGrant",
-                "kms:DescribeKey",
-            ],
-            resources=["*"],
-            conditions={
-                "StringEquals": {
-                    "aws:SourceAccount": [f"{Aws.ACCOUNT_ID}"],
-                }
-            },
-        )
-        datasync_logs_bucket_key.add_to_resource_policy(kms_bucket_policy)
+    def _create_source_buckets(self):
+        source_buckets = {}
+        for bucket in ["Metrics", "Analytics"]:
+            # We initiate this class for the DataSync {bucket} Task
+            datasync_logs_bucket_key = kms.Key(
+                self,
+                id=f"DataSync{bucket}BucketKey",
+                description=f"{self.id} Bucket Key",
+                enable_key_rotation=True,
+                pending_window=Duration.days(30),
+                removal_policy=RemovalPolicy.RETAIN,
+            )
+            kms_bucket_policy = iam.PolicyStatement(
+                sid=f"Allow access to {self.id}Bucket",
+                principals=[
+                    iam.ServicePrincipal("s3.amazonaws.com"),
+                    DATASYNC_SERVICE_PRINCIPAL,
+                    iam.ServicePrincipal(GLUE_IAM_SERVICE_PRINCIPAL),
+                ],
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "kms:Encrypt",
+                    "kms:Decrypt",
+                    "kms:ReEncrypt*",
+                    "kms:GenerateDataKey*",
+                    "kms:CreateGrant",
+                    "kms:DescribeKey",
+                ],
+                resources=["*"],
+                conditions={
+                    "StringEquals": {
+                        "aws:SourceAccount": [f"{Aws.ACCOUNT_ID}"],
+                    }
+                },
+            )
+            datasync_logs_bucket_key.add_to_resource_policy(kms_bucket_policy)
 
-        self.source_bucket = s3.Bucket(
-            self,
-            "DataSyncMetricsBucket",
-            object_ownership=s3.ObjectOwnership.OBJECT_WRITER,
-            access_control=s3.BucketAccessControl.BUCKET_OWNER_FULL_CONTROL,
-            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
-            encryption_key=datasync_logs_bucket_key,
-            removal_policy=RemovalPolicy.RETAIN,
-            versioned=True,
-            enforce_ssl=True,
-            object_lock_enabled=True,
-        )
-        # For backward compatibility, maintain the bucket's logical ID across solution versions to prevent creation of
-        # a new bucket to store Prebid metrics data during stack updates.
-        # DataSyncMetricsBucket76641540 is the logical id for the bucket in the v1.0.x solution template.
-        self.source_bucket.node.default_child.override_logical_id("DataSyncMetricsBucket76641540")
-        # Suppress the cfn_guard rule for S3 bucket logging since Cloudtrail logging has been enabled for this bucket.
-        self.source_bucket.node.default_child.add_metadata("guard", {'SuppressedRules': ['S3_BUCKET_LOGGING_ENABLED']})
+            source_bucket = s3.Bucket(
+                self,
+                f"DataSync{bucket}Bucket",
+                object_ownership=s3.ObjectOwnership.OBJECT_WRITER,
+                access_control=s3.BucketAccessControl.BUCKET_OWNER_FULL_CONTROL,
+                block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
+                encryption_key=datasync_logs_bucket_key,
+                removal_policy=RemovalPolicy.RETAIN,
+                versioned=True,
+                enforce_ssl=True,
+                object_lock_enabled=True,
+            )
 
-        self.source_bucket.node.add_dependency(datasync_logs_bucket_key)
+            if source_bucket == "Metrics":
+                # For backward compatibility, maintain the bucket's logical ID across solution versions to prevent creation of
+                # a new bucket to store Prebid metrics data during stack updates.
+                # DataSyncMetricsBucket76641540 is the logical id for the bucket in the v1.0.x solution template.
+                source_bucket.node.default_child.override_logical_id(f"DataSyncMetricsBucket76641540")
+
+            # Suppress the cfn_guard rule for S3 bucket logging since Cloudtrail logging has been enabled for this bucket.
+            source_bucket.node.default_child.add_metadata("guard", {'SuppressedRules': ['S3_BUCKET_LOGGING_ENABLED']})
+
+            source_bucket.node.add_dependency(datasync_logs_bucket_key)
+
+            source_buckets[bucket] = source_bucket
+
+        self.metrics_source_bucket = source_buckets["Metrics"]
+        self.analytics_source_bucket = source_buckets["Analytics"]
 
     def _create_lamda_layer(self):
         self.powertools_layer = PowertoolsLayer.get_or_create(self)
-        self.metrics_layer = LayerVersion(
-            self,
-            "metrics-layer",
-            code=Code.from_asset(
-                path=os.path.join(
-                    f"{Path(__file__).parents[1]}", "aws_lambda_layers/metrics_layer/"
-                )
-            ),
-            layer_version_name=f"{self._resource_prefix}-metrics-layer",
-            compatible_runtimes=[Runtime.PYTHON_3_11],
-        )
 
     def _create_output_bucket(self) -> s3.Bucket:
         """
@@ -357,10 +362,10 @@ class GlueEtl(Construct):
                     actions=S3_READ_ACTIONS,
                     resources=[
                         self.artifacts_bucket.bucket_arn,
-                        self.source_bucket.bucket_arn,
+                        self.metrics_source_bucket.bucket_arn,
                         self.output_bucket.bucket_arn,
                         f"{self.artifacts_bucket.bucket_arn}/*",
-                        f"{self.source_bucket.bucket_arn}/*",
+                        f"{self.metrics_source_bucket.bucket_arn}/*",
                         f"{self.output_bucket.bucket_arn}/*",
                     ],
                     conditions=ACCOUNT_ID_CONDITION,
@@ -429,10 +434,10 @@ class GlueEtl(Construct):
 
         glue_job_role.attach_inline_policy(glue_job_policy)
         glue_job_policy.node.add_dependency(self.artifacts_bucket)
-        glue_job_policy.node.add_dependency(self.source_bucket)
+        glue_job_policy.node.add_dependency(self.metrics_source_bucket)
         glue_job_policy.node.add_dependency(self.output_bucket)
         self.artifacts_bucket.encryption_key.grant_encrypt_decrypt(glue_job_role)
-        self.source_bucket.encryption_key.grant_encrypt_decrypt(glue_job_role)
+        self.metrics_source_bucket.encryption_key.grant_encrypt_decrypt(glue_job_role)
         self.output_bucket.encryption_key.grant_encrypt_decrypt(glue_job_role)
 
         # Create the metrics etl glue job
@@ -449,20 +454,22 @@ class GlueEtl(Construct):
             default_arguments={
                 "--SOLUTION_ID": self.node.try_get_context("SOLUTION_ID"),
                 "--SOLUTION_VERSION": self.node.try_get_context("SOLUTION_VERSION"),
-                "--SOURCE_BUCKET": self.source_bucket.bucket_name,
+                "--SOURCE_BUCKET": self.metrics_source_bucket.bucket_name,
                 "--OUTPUT_BUCKET": self.output_bucket.bucket_name,
                 "--DATABASE_NAME": self.GLUE_DATABASE_NAME,
                 "--AWS_REGION": Aws.REGION,
                 "--ATHENA_QUERY_BUCKET": self.artifacts_bucket.bucket_name,
+                "--METRICS_NAMESPACE": self.node.try_get_context("METRICS_NAMESPACE"),
+                "--RESOURCE_PREFIX": Aws.STACK_NAME,
                 "--enable-continuous-cloudwatch-log": "true",
                 "--enable-metrics": "true",
                 "--enable-observability-metrics": "true",
             },
             name=self.GLUE_JOB_NAME,
             execution_property=glue.CfnJob.ExecutionPropertyProperty(
-                max_concurrent_runs=globals.GLUE_MAX_CONCURRENT_RUNS
+                max_concurrent_runs=stack_constants.GLUE_MAX_CONCURRENT_RUNS
             ),
-            timeout=globals.GLUE_TIMEOUT_MINS,
+            timeout=stack_constants.GLUE_TIMEOUT_MINS,
         )
 
         return glue_job

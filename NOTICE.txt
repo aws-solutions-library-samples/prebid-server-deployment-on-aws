@@ -1,4 +1,4 @@
-Prebid Server Deployment on AWS
+Guidance for Deploying a Prebid Server on AWS
 
 Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 Licensed under the Apache License Version 2.0 (the "License"). You may not use this file except
@@ -13,9 +13,8 @@ THIRD PARTY COMPONENTS
 
 This software includes third party software subject to the following copyrights:
 
-docker/library/alpine under the MIT license.
+alpinelinux/docker-alpine under the MIT license.
 github.com/prebid/prebid-server-java under the Apache-2.0 license.
-attrs under the MIT license.
 aws-cdk-asset-awscli-v1 under the Apache-2.0 license.
 aws-cdk-asset-kubectl-v20 under the Apache-2.0 license.
 aws-cdk-asset-node-proxy-agent-v6 under the Apache-2.0 license.

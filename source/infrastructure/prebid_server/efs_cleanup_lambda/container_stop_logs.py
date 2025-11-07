@@ -13,16 +13,14 @@ from pathlib import Path
 from datetime import datetime, timezone
 from aws_lambda_powertools import Logger
 
-try:
-    from cloudwatch_metrics import metrics
-except ImportError:
-    from aws_lambda_layers.metrics_layer.python.cloudwatch_metrics import metrics
+from cloudwatch_metrics import metrics
 
 EFS_MOUNT_PATH = os.environ["EFS_MOUNT_PATH"]
 EFS_METRICS = os.environ["EFS_METRICS"]
 EFS_LOGS = os.environ["EFS_LOGS"]
 METRICS_NAMESPACE = os.environ["METRICS_NAMESPACE"]
 RESOURCE_PREFIX = os.environ["RESOURCE_PREFIX"]
+EFS_ANALYTICS = os.environ["EFS_ANALYTICS"]
 
 logger = Logger(utc=True, service="container-stop-logs")
 
@@ -42,7 +40,9 @@ def event_handler(event, _):
 
     efs_mount_path = Path(EFS_MOUNT_PATH)
     metrics_log_folder = efs_mount_path.joinpath(EFS_METRICS).joinpath(container_run_id)
+    analytics_log_folder = efs_mount_path.joinpath(EFS_ANALYTICS).joinpath(container_run_id)
     compress_log_file(metrics_log_folder, "prebid-metrics.log")
+    compress_log_file(analytics_log_folder, "prebid-analytics.log")
 
 
 def compress_log_file(log_folder_path: Path, log_file_name: str):
@@ -59,7 +59,7 @@ def compress_log_file(log_folder_path: Path, log_file_name: str):
         / f"{log_file_name.split('.')[0]}.{utc_time.year}-{utc_time.month:02d}-{utc_time.day:02d}_{utc_time.hour:02d}.log.gz"
     )
 
-    with tarfile.open(file_to_compress, "w:gz") as tar: # NOSONAR
+    with tarfile.open(file_to_compress, "w:gz") as tar:
         tar.add(log_file_path)
 
     logger.info(f"Log file compressed: {file_to_compress}")

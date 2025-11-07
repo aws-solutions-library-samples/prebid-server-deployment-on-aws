@@ -16,7 +16,8 @@ cd source/tests/functional_tests
 
 #### Optional Parameter Details:
 * `--in-venv`: Run functional tests in an existing virtual environment. If not running the tests in a venv, leave this parameter. [--in-venv 1]
-* `--test-file-name`: Run individual test file (optional) e.g --test-file-name test_bad_requests.py, --test-file-name test_bad_requests.py::test_request_rejected_by_waf_1
+* `--test-file-name`: Run individual test file (optional) e.g --test-file-name test_bad_requests.py,
+    Run individual test function (optional) e.g --test-file-name test_bad_requests py::test_request_rejected_by_waf_1
 * `--region`: AWS region for CLI commands (optional, default to us-east-1)
 * `--extras`: Append more commands to pytest run (optional)
 

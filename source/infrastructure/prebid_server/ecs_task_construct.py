@@ -6,8 +6,7 @@ from aws_cdk import aws_ecs as ecs
 from aws_cdk import aws_logs as logs
 from aws_cdk import aws_iam as iam
 from constructs import Construct
-import prebid_server.stack_constants as globals
-
+import prebid_server.stack_constants as stack_constants
 
 class ECSTaskConstruct(Construct):
     def __init__(
@@ -18,6 +17,7 @@ class ECSTaskConstruct(Construct):
             prebid_fs,
             prebid_fs_access_point,
             docker_configs_manager_bucket,
+            stored_requests_bucket
     ) -> None:
         """
         This construct creates EFS resources.
@@ -28,13 +28,13 @@ class ECSTaskConstruct(Construct):
         self.prebid_task_definition = ecs.FargateTaskDefinition(
             self,
             "PrebidTaskDef",
-            cpu=globals.VCPU,
-            memory_limit_mib=globals.MEMORY_LIMIT_MIB,
+            cpu=stack_constants.VCPU,
+            memory_limit_mib=stack_constants.MEMORY_LIMIT_MIB,
         )
 
         # Add EFS volume to task definition
         self.prebid_task_definition.add_volume(
-            name=globals.EFS_VOLUME_NAME,
+            name=stack_constants.EFS_VOLUME_NAME,
             efs_volume_configuration=ecs.EfsVolumeConfiguration(
                 file_system_id=prebid_fs.file_system_id,
                 transit_encryption="ENABLED",
@@ -98,20 +98,21 @@ class ECSTaskConstruct(Construct):
         self.prebid_container = self.prebid_task_definition.add_container(
             "Prebid-Container",
             image=image_ecs_obj,
-            port_mappings=[ecs.PortMapping(container_port=globals.CONTAINER_PORT)],
+            port_mappings=[ecs.PortMapping(container_port=stack_constants.CONTAINER_PORT)],
             logging=log_driver,
             environment={
-                "AMT_ADAPTER_ENABLED": "false",
-                "AMT_BIDDING_SERVER_SIMULATOR_ENDPOINT": "bidder-simulator-endpoint",
                 "ECS_ENABLE_SPOT_INSTANCE_DRAINING": "true",
-                "DOCKER_CONFIGS_S3_BUCKET_NAME": docker_configs_manager_bucket.bucket_name
+                "DOCKER_CONFIGS_S3_BUCKET_NAME": docker_configs_manager_bucket.bucket_name,
+                "SETTINGS_S3_BUCKET": stored_requests_bucket.bucket_name,
+                "SETTINGS_S3_ENDPOINT": f"https://s3.{Aws.REGION}.amazonaws.com",
+                "SETTINGS_S3_REGION": f"{Aws.REGION}"
             },
             health_check={
                 "command": [
-                    "CMD-SHELL", f"curl -f {globals.HEALTH_ENDPOINT} || exit 1",
+                    "CMD-SHELL", f"curl -k -f {stack_constants.HEALTH_ENDPOINT} || exit 1",
                 ],
-                "interval": Duration.seconds(globals.HEALTH_CHECK_INTERVAL_SECS),
-                "timeout": Duration.seconds(globals.HEALTH_CHECK_TIMEOUT_SECS)
+                "interval": Duration.seconds(stack_constants.HEALTH_CHECK_INTERVAL_SECS),
+                "timeout": Duration.seconds(stack_constants.HEALTH_CHECK_TIMEOUT_SECS)
             }
         )
 
@@ -137,7 +138,9 @@ class ECSTaskConstruct(Construct):
                 actions=s3_policy_actions,
                 resources=[
                     f"{docker_configs_manager_bucket.bucket_arn}/*",
-                    docker_configs_manager_bucket.bucket_arn
+                    docker_configs_manager_bucket.bucket_arn,
+                    f"{stored_requests_bucket.bucket_arn}/*",
+                    stored_requests_bucket.bucket_arn
                 ],
             )
         )
@@ -145,8 +148,8 @@ class ECSTaskConstruct(Construct):
         # Add mount points to container
         self.prebid_container.add_mount_points(
             ecs.MountPoint(
-                container_path=globals.EFS_MOUNT_PATH,
-                source_volume=globals.EFS_VOLUME_NAME,
+                container_path=stack_constants.EFS_MOUNT_PATH,
+                source_volume=stack_constants.EFS_VOLUME_NAME,
                 read_only=False,
             )
         )

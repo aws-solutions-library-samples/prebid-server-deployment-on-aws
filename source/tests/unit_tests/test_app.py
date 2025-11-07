@@ -46,7 +46,7 @@ def build_app_fix():
         "prebid_server.vpc_construct.VpcConstruct",
         "prebid_server.container_image_construct.ContainerImageConstruct",
         "prebid_server.alb_access_logs_construct.AlbAccessLogsConstruct",
-        "prebid_server.docker_configs_construct.DockerConfigsManager",
+        "prebid_server.prebid_configs_construct.PrebidConfigsManager",
     ]
 )
 def test_build_app(build_app_fix):
@@ -54,4 +54,4 @@ def test_build_app(build_app_fix):
     assert app_stack is not None
     assert app_stack.stack_name == "prebid-server-deployment-on-aws"
     assert app_stack.template is not None
-    assert app_stack.template["Description"] == "(SO9999test) - Prebid Server Deployment on AWS. Version v99.99.99"
+    assert app_stack.template["Description"] == "(SO9999test) - Guidance for Deploying a Prebid Server on AWS. Version v99.99.99"

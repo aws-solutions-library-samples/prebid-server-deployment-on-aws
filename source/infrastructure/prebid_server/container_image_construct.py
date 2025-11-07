@@ -7,10 +7,9 @@ from aws_cdk import Aws, CfnParameter, CfnOutput
 from aws_cdk import aws_ecs as ecs
 from constructs import Construct
 from aws_cdk.aws_ecr_assets import DockerImageAsset, Platform
+from .prebid_configs_construct import PrebidConfigsManager
 
-from .docker_configs_construct import DockerConfigsManager
-
-logging.basicConfig() # NOSONAR
+logging.basicConfig()
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -29,7 +28,8 @@ class ContainerImageConstruct(Construct):
             self,
             scope,
             id,
-            solutions_template_options
+            solutions_template_options,
+            stored_requests_bucket
     ) -> None:
         """
         This construct creates Docker image.
@@ -38,9 +38,9 @@ class ContainerImageConstruct(Construct):
 
         docker_build_location = self.get_docker_build_location()
 
-        # Deploy Docker Configuration Files to S3 bucket
-        docker_configs_manager = DockerConfigsManager(self, "ConfigFiles", docker_build_location)
-        self.docker_configs_manager_bucket = docker_configs_manager.bucket
+        # Deploy Prebid configuration files to S3 bucket
+        prebid_configs_manager = PrebidConfigsManager(self, "ConfigFiles", docker_build_location, stored_requests_bucket)
+        self.docker_configs_manager_bucket = prebid_configs_manager.docker_config_bucket
 
         if ECR_REGISTRY is None:
             # When running cdk-deploy, unless ECR_REGISTRY is set we will build the image locally
@@ -60,19 +60,21 @@ class ContainerImageConstruct(Construct):
             logger.info("Prepare ECS container image from registry.")
             image_cfn_param = CfnParameter(
                 self,
-                id="PrebidServerContainerImage",
+                id="ContainerImage",
                 type="String",
                 description="The fully qualified name of the Prebid Server container image to deploy.",
                 default=ECR_REGISTRY
             )
-            solutions_template_options.add_parameter(image_cfn_param, label="", group="Container Image Settings")
+            solutions_template_options.add_parameter(image_cfn_param, label="PrebidServerContainerImage", group="Container Image Settings")
 
             self.image_ecs_obj = ecs.ContainerImage.from_registry(image_cfn_param.value_as_string)
             self.image_ecs_str = image_cfn_param.value_as_string
 
-        CfnOutput(self, "Prebid-ECS-Image", value=self.image_ecs_str)
-        CfnOutput(self, "Prebid-Solution-Config-Bucket",
-                  value=f"https://{Aws.REGION}.console.aws.amazon.com/s3/home?region={Aws.REGION}&bucket={self.docker_configs_manager_bucket.bucket_name}")
+        CfnOutput(self, "PrebidECSImage", value=self.image_ecs_str, description="Prebid Server ECR Image")
+        CfnOutput(self, "PrebidSolutionConfigBucket",
+                  value=f"https://{Aws.REGION}.console.aws.amazon.com/s3/home?region={Aws.REGION}&bucket={self.docker_configs_manager_bucket.bucket_name}",
+                  description="Prebid Solution Configuration Bucket"
+                )
 
     @staticmethod
     def get_docker_build_location():

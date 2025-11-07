@@ -7,7 +7,7 @@ import json
 import awsglue.transforms as awsglue_transforms
 from awsglue.utils import getResolvedOptions
 from pyspark.context import SparkContext
-from pyspark.sql.functions import regexp_extract
+from pyspark.sql.functions import regexp_extract, sum, col
 from awsglue.context import GlueContext
 from awsglue.job import Job
 from awsglue.dynamicframe import DynamicFrameCollection
@@ -16,7 +16,7 @@ import concurrent.futures
 import re
 import boto3
 from botocore import config
-import os
+from datetime import datetime
 
 args = getResolvedOptions(sys.argv, [
     "SOLUTION_ID",
@@ -27,9 +27,11 @@ args = getResolvedOptions(sys.argv, [
     "DATABASE_NAME",
     "ATHENA_QUERY_BUCKET",
     "AWS_REGION",
-    "object_keys"
-    ]
-)
+    "object_keys",
+    "METRICS_NAMESPACE",
+    "RESOURCE_PREFIX"
+]
+                          )
 
 SOLUTION_ID = args["SOLUTION_ID"]
 SOLUTION_VERSION = args["SOLUTION_VERSION"]
@@ -39,6 +41,14 @@ DATABASE_NAME = args["DATABASE_NAME"]
 ATHENA_QUERY_BUCKET = args["ATHENA_QUERY_BUCKET"]
 AWS_REGION = args["AWS_REGION"]
 OBJECT_KEYS = json.loads(args["object_keys"])
+METRICS_NAMESPACE = args["METRICS_NAMESPACE"]
+RESOURCE_PREFIX = args["RESOURCE_PREFIX"]
+
+append_solution_identifier = {
+    "user_agent_extra": f"AwsSolution/{SOLUTION_ID}/{SOLUTION_VERSION}"
+}
+default_config = config.Config(**append_solution_identifier)
+
 
 class GroupFilter:
     def __init__(self, name, filters):
@@ -125,6 +135,41 @@ def repair_table(database_name, table_name, region):
         }
     )
 
+
+def send_metrics(metric_name, value):
+    cloudwatch_client = boto3.client("cloudwatch", config=default_config)
+    cloudwatch_client.put_metric_data(
+        Namespace=METRICS_NAMESPACE,
+        MetricData=[
+            {
+                'MetricName': metric_name,
+                'Dimensions': [{'Name': 'stack-name', 'Value': RESOURCE_PREFIX}],
+                'Value': value,
+                'Unit': 'Count',
+                "Timestamp": datetime.utcnow()
+            }
+        ]
+    )
+
+
+def get_prebid_server_metrics_sum(node: DynamicFrame, metrics_to_sum):
+    result = node.toDF().filter(col("name").isin(metrics_to_sum)).agg(
+        sum("count").alias("total_count"))
+    total_count = result.collect()[0]["total_count"]
+    return total_count if total_count else 0
+
+
+def record_cloudwatch_metrics(node: DynamicFrame):
+    auction_requests_metrics = ["app_requests", "debug_requests", "no_cookie_requests"]
+    imps_requests_metrics = ["imps_requested"]
+
+    auction_requests_count = get_prebid_server_metrics_sum(node, auction_requests_metrics)
+    imps_count = get_prebid_server_metrics_sum(node, imps_requests_metrics)
+
+    send_metrics("AuctionRequests", auction_requests_count)
+    send_metrics("ImpsRequested", imps_count)
+
+
 # Initialize Job Process
 sc = SparkContext()
 glueContext = GlueContext(sc)
@@ -196,7 +241,7 @@ for metric in metric_list:
         dfc=type_split_node,
         key=metric
     )
-    
+
     # Check if the node is empty or has no valid data
     if filtered_node.count() == 0 or filtered_node.toDF().schema == "root":
         print(f"Skipping metric type: {metric} because it has no data")
@@ -206,7 +251,7 @@ for metric in metric_list:
     cols = schema.keys()
     exclusion = ["year_month", "timestamp", "container_id"]
     cols = [item for item in cols if item not in exclusion]
-    
+
     metric_node = create_metric_node(node=filtered_node, columns=cols)
     metric_node = awsglue_transforms.DropFields.apply(
         frame=metric_node,
@@ -214,6 +259,12 @@ for metric in metric_list:
     )
 
     metric_node = map_data_types(node=metric_node, schema=schema)
+
+    if metric == "counter":
+        try:
+            record_cloudwatch_metrics(metric_node)
+        except Exception as e:
+            print(f"Error recording cloudwatch metrics: {e}")
 
     glueContext.write_dynamic_frame.from_options(
         frame=metric_node,

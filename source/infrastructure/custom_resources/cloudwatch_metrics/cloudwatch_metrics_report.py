@@ -145,6 +145,25 @@ class CloudwatchMetricsReport:
         ]
         return self.get_generic_metrics(metrics_to_sum, "Lambda")
 
+    def get_prebid_server_metrics(self):
+        metrics_to_sum = [
+            "AuctionRequests",
+            "ImpsRequested",
+        ]
+        data = self.get_generic_metrics(metrics_to_sum, "PrebidServer")
+        return data
+    
+    def get_prebid_cache_metrics(self):
+        metrics_to_sum = [
+            "GetNotFound",
+            "GetSuccess",
+            "PostFail",
+            "PostCount",
+            "PostSuccess"
+        ]
+        data = self.get_generic_metrics(metrics_to_sum, "PrebidCache")
+        return data
+
     def get_cloudfront_metrics(self):
         # Cloudfront
         data = self.data_init()
@@ -302,6 +321,51 @@ class CloudwatchMetricsReport:
                 continue
 
         return data
+    
+    def get_elasticache_metrics(self):
+        metric_tag = "ElastiCache"
+        namespace = f"AWS/{metric_tag}"
+        data = self.data_init()
+        elasticache_cluster_id = os.environ["ELASTICACHE_CLUSTER_ID"]
+        elasticache_response = self.cloudwatch_client.list_metrics(
+            Namespace=namespace,
+            Dimensions=[
+                {"Name": "clusterId", "Value": elasticache_cluster_id}
+            ],
+        )
+        for elasticache_metric in elasticache_response.get("Metrics", []):
+            elasticache_metric_name = elasticache_metric["MetricName"]
+            try:
+                elasticache_stat_response = self.get_metric_statistics(
+                    metrics_namespace=namespace,
+                    metric_name=elasticache_metric_name,
+                    statistics=["SampleCount", "Average", *self.statistics],
+                    dimensions=elasticache_metric["Dimensions"],
+                )
+                metric_data = self.prepare_metric_data(
+                    response=elasticache_stat_response,
+                    metric_name=elasticache_metric_name,
+                    metric_tag=metric_tag,
+                )
+                if not metric_data:
+                    raise ValueError(f"No metric data found for metric {metric_tag}-{elasticache_metric_name}")
+
+                data["Data"].update(metric_data)
+
+                metric = f"{metric_tag}-{elasticache_metric_name}"
+                data["MetricData"].setdefault(metric, {})
+                data["MetricData"][metric].update(
+                    {
+                        "value": data["Data"][metric],
+                        "dimensions": elasticache_metric["Dimensions"],
+                        "datapoints": data["Data"].pop("datapoints"),
+                    }
+                )
+            except Exception as e:
+                logger.info(f"Fail to prepare metrics data for {elasticache_metric_name}. Error: {e}")
+                continue
+
+        return data
 
     def get_uuid(self):
         return self.secrets_manager_client.get_secret_value(
@@ -321,9 +385,12 @@ class CloudwatchMetricsReport:
 
         metric_funcs = [
             "get_lambda_metrics",
+            "get_prebid_server_metrics",
             "get_cloudformation_metrics",
             "get_nat_gateway_metrics",
             "get_application_elb_metrics",
+            "get_elasticache_metrics",
+            "get_prebid_cache_metrics",
         ]
 
         if os.environ.get("CF_DISTRIBUTION_ID"):
@@ -331,7 +398,7 @@ class CloudwatchMetricsReport:
 
         for metric_func in metric_funcs:
             metric_report_data = getattr(self, metric_func)()
-            if metric_func not in ["get_lambda_metrics", "get_cloudformation_metrics"]:
+            if metric_func not in ["get_lambda_metrics", "get_prebid_server_metrics", "get_cloudformation_metrics"]:
                 if metric_report_data["MetricData"]:
                     self.put_metric_data(metric_report_data["MetricData"])
             data["Data"].update(metric_report_data["Data"])

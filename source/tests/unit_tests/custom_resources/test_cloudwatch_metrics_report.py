@@ -53,7 +53,6 @@ def create_secret():
     return secret_uuid
 
 
-
 @patch("crhelper.CfnResource")
 @patch("custom_resources.cloudwatch_metrics.cloudwatch_metrics_report.send_metrics")
 def test_event_handler(send_metrics_mock, _):
@@ -76,44 +75,42 @@ def test_send_metrics(_, mock_response_put, event, context):
 
     mock_response_put.return_value = MagicMock(reason="200")
 
-    # Lambda Funcs.
-    test_metrics_to_sum = [
-        "DeleteEfsFiles",
-        "StartGlueJob",
-        "CloudFormation-CreateUpdate"
-    ]
-
     dt_utc_now = datetime.utcnow()
     # minus 6 hours to make MetricData timestamp fall into the StartTime and EndTime range used in `cloudwatch_client.get_metric_statistics()`
     metric_data_timestamp = dt_utc_now - timedelta(hours=6)
-
     test_metric_sum = {}
+
+    # Generic metrics
+    generic_metrics = {
+        "Lambda": ["DeleteEfsFiles", "StartGlueJob"],
+        "CloudFormation": ["CreateUpdate"],
+        "PrebidServer": ["AuctionRequests", "ImpsRequested"]
+    }
+
     test_sum = 20.0
 
-    for metric_name in test_metrics_to_sum:
-        if metric_name == "CloudFormation-CreateUpdate":
-            test_metric_sum[metric_name] = test_sum
-        else:
-            test_metric_sum[f"Lambda-{metric_name}"] = test_sum
-
-        cloudwatch_client.put_metric_data(
-            Namespace=os.environ["METRICS_NAMESPACE"],
-            MetricData=[
-                {
-                    "MetricName": metric_name,
-                    "Dimensions": [
-                        {"Name": "stack-name", "Value": os.environ["STACK_NAME"]}
-                    ],
-                    "Timestamp": metric_data_timestamp,
-                    "Unit": "Count",
-                    "StatisticValues": {
-                        "SampleCount": 50.0,
-                        "Sum": test_sum,
-                        "Minimum": 10.0,
-                        "Maximum": 20.0
-                    }
-                },
-            ])
+    for metric_tag, metrics in generic_metrics.items():
+        for metric in metrics:
+            test_metric_sum[f"{metric_tag}-{metric}"] = test_sum
+            metric_name = f"{metric_tag}-{metric}" if metric_tag == "CloudFormation" else metric
+            cloudwatch_client.put_metric_data(
+                Namespace=os.environ["METRICS_NAMESPACE"],
+                MetricData=[
+                    {
+                        "MetricName": metric_name,
+                        "Dimensions": [
+                            {"Name": "stack-name", "Value": os.environ["STACK_NAME"]}
+                        ],
+                        "Timestamp": metric_data_timestamp,
+                        "Unit": "Count",
+                        "StatisticValues": {
+                            "SampleCount": 50.0,
+                            "Sum": test_sum,
+                            "Minimum": 10.0,
+                            "Maximum": 20.0
+                        }
+                    },
+                ])
 
     # NAT gateway
     ec2_client = boto3.client("ec2", region_name=os.environ["AWS_REGION"])
@@ -269,6 +266,9 @@ def test_send_metrics(_, mock_response_put, event, context):
             ]
         )
         test_metric_sum[f"{test_metric_tag}-{cf_cw_metric}"] = cf_sum
+        
+    #Elasticache
+    os.environ["ELASTICACHE_CLUSTER_ID"] = "test-id"
 
     DT_TIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
@@ -311,6 +311,7 @@ def test_send_metrics(_, mock_response_put, event, context):
         cloudwatch_metrics_report = CloudwatchMetricsReport()
         for metric_func in [
             "get_lambda_metrics",
+            "get_prebid_server_metrics",
             "get_cloudfront_metrics",
             "get_nat_gateway_metrics",
             "get_application_elb_metrics",

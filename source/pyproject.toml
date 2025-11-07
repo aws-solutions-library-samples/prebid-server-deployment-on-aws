@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "prebid-server-deployment-on-aws"
-version = "1.1.1"
-description = "Prebid Server Deployment on AWS - Easily deploy and operate a scalable Prebid Server for programmatic advertising auctions"
+version = "1.2.0"
+description = "Guidance for Deploying a Prebid Server on AWS - Easily deploy and operate a scalable Prebid Server for programmatic advertising auctions"
 license = "MIT"
 authors = ["https://docs.aws.amazon.com/solutions/latest/prebid-server-deployment-on-aws/contributors.html"]
 packages = [
@@ -20,8 +20,8 @@ pyparsing = "*"
 url_normalize = "*"
 docker = "*"
 cryptography = ">=44.0.1"
-urllib3 = ">=2.5.0"
 requests = ">=2.32.4"
+urllib3 = ">=2.5.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "*"
@@ -32,6 +32,7 @@ moto = ">=5.0.0"
 cdk-nag = "*"
 responses = "*"
 pytest-ordering = "*"
+redis = "*"
 
 [tool.poetry.group.local.dependencies]
 aws-solutions-cdk = {path = "cdk_solution_helper_py/helpers_cdk", develop = true}

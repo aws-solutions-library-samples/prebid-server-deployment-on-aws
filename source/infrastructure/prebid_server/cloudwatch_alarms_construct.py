@@ -8,7 +8,7 @@ from aws_cdk import aws_ec2 as ec2
 from aws_cdk import aws_cloudfront as cloudfront
 from constructs import Construct
 
-import prebid_server.stack_constants as globals
+import prebid_server.stack_constants as stack_constants
 
 
 class CloudwatchAlarms(Construct):
@@ -53,16 +53,16 @@ class CloudwatchAlarms(Construct):
         CfnResource(
             self,
             "ECSUtilizationCPUAlarm",
-            type=globals.CLOUDWATCH_ALARM_TYPE,
+            type=stack_constants.CLOUDWATCH_ALARM_TYPE,
             properties={
                 "ActionsEnabled": False,
                 "EvaluationPeriods": 1,
                 "DatapointsToAlarm": 1,
                 "Threshold": CloudwatchAlarms.threshold_add_10pct(
-                    globals.CPU_TARGET_UTILIZATION_PCT
+                    stack_constants.CPU_TARGET_UTILIZATION_PCT
                 ),
                 "ComparisonOperator": "GreaterThanOrEqualToThreshold",
-                "TreatMissingData": "missing",
+                "TreatMissingData": "notBreaching",
                 "Metrics": [
                     {
                         "Id": "ecs_cpu_utilization",
@@ -78,16 +78,16 @@ class CloudwatchAlarms(Construct):
         CfnResource(
             self,
             "ECSUtilizationMemoryAlarm",
-            type=globals.CLOUDWATCH_ALARM_TYPE,
+            type=stack_constants.CLOUDWATCH_ALARM_TYPE,
             properties={
                 "ActionsEnabled": False,
                 "EvaluationPeriods": 1,
                 "DatapointsToAlarm": 1,
                 "Threshold": CloudwatchAlarms.threshold_add_10pct(
-                    globals.MEMORY_TARGET_UTILIZATION_PCT
+                    stack_constants.MEMORY_TARGET_UTILIZATION_PCT
                 ),
                 "ComparisonOperator": "GreaterThanOrEqualToThreshold",
-                "TreatMissingData": "missing",
+                "TreatMissingData": "notBreaching",
                 "Metrics": [
                     {
                         "Id": "ecs_memory_utilization",
@@ -104,11 +104,11 @@ class CloudwatchAlarms(Construct):
         CfnResource(
             self,
             "ALB5xxErrorAlarm",
-            type=globals.CLOUDWATCH_ALARM_TYPE,
+            type=stack_constants.CLOUDWATCH_ALARM_TYPE,
             properties={
                 "ActionsEnabled": False,
                 "MetricName": "HTTPCode_ELB_5XX_Count",
-                "Namespace": globals.CLOUDWATCH_ALARM_NAMESPACE,
+                "Namespace": stack_constants.CLOUDWATCH_ALARM_NAMESPACE,
                 "Statistic": "Average",
                 "Dimensions": [
                     {
@@ -121,18 +121,18 @@ class CloudwatchAlarms(Construct):
                 "DatapointsToAlarm": 1,
                 "Threshold": 0,  # Set the threshold to 0% (error rate > 0%)
                 "ComparisonOperator": "GreaterThanThreshold",
-                "TreatMissingData": "missing",
+                "TreatMissingData": "notBreaching",
             },
         )
 
         CfnResource(
             self,
             "ALB4xxErrorAlarm",
-            type=globals.CLOUDWATCH_ALARM_TYPE,
+            type=stack_constants.CLOUDWATCH_ALARM_TYPE,
             properties={
                 "ActionsEnabled": False,
                 "MetricName": "HTTPCode_ELB_4XX_Count",
-                "Namespace": globals.CLOUDWATCH_ALARM_NAMESPACE,
+                "Namespace": stack_constants.CLOUDWATCH_ALARM_NAMESPACE,
                 "Statistic": "Average",
                 "Dimensions": [
                     {
@@ -145,18 +145,18 @@ class CloudwatchAlarms(Construct):
                 "DatapointsToAlarm": 1,
                 "Threshold": 1,  # Set the threshold to 1% (error rate > 1%)
                 "ComparisonOperator": "GreaterThanThreshold",
-                "TreatMissingData": "missing",
+                "TreatMissingData": "notBreaching",
             },
         )
 
         CfnResource(
             self,
             "ALBTargetResponseTimeAlarm",
-            type=globals.CLOUDWATCH_ALARM_TYPE,
+            type=stack_constants.CLOUDWATCH_ALARM_TYPE,
             properties={
                 "ActionsEnabled": False,
                 "MetricName": "TargetResponseTime",
-                "Namespace": globals.CLOUDWATCH_ALARM_NAMESPACE,
+                "Namespace": stack_constants.CLOUDWATCH_ALARM_NAMESPACE,
                 "Statistic": "Average",
                 "Dimensions": [
                     {
@@ -169,14 +169,14 @@ class CloudwatchAlarms(Construct):
                 "DatapointsToAlarm": 1,
                 "Threshold": 1,  # Set the threshold to 1 second (response time > 1s)
                 "ComparisonOperator": "GreaterThanThreshold",
-                "TreatMissingData": "missing",
+                "TreatMissingData": "notBreaching",
             },
         )
 
         CfnResource(
             self,
             "ALBRequestsAnomalyAlarm",
-            type=globals.CLOUDWATCH_ALARM_TYPE,
+            type=stack_constants.CLOUDWATCH_ALARM_TYPE,
             properties={
                 "ActionsEnabled": False,
                 "Dimensions": [],
@@ -184,14 +184,14 @@ class CloudwatchAlarms(Construct):
                 "DatapointsToAlarm": 1,
                 "ThresholdMetricId": "ad1",
                 "ComparisonOperator": "LessThanLowerOrGreaterThanUpperThreshold",
-                "TreatMissingData": "missing",
+                "TreatMissingData": "notBreaching",
                 "Metrics": [
                     {
                         "Id": "m1",
                         "ReturnData": True,
                         "MetricStat": {
                             "Metric": {
-                                "Namespace": globals.CLOUDWATCH_ALARM_NAMESPACE,
+                                "Namespace": stack_constants.CLOUDWATCH_ALARM_NAMESPACE,
                                 "MetricName": "RequestCount",
                                 "Dimensions": [
                                     {
@@ -208,7 +208,7 @@ class CloudwatchAlarms(Construct):
                         "Id": "ad1",
                         "Label": "RequestCount (expected)",
                         "ReturnData": True,
-                        "Expression": globals.ANOMALY_DETECTION_BAND_2,
+                        "Expression": stack_constants.ANOMALY_DETECTION_BAND_2,
                     },
                 ],
             },
@@ -218,7 +218,7 @@ class CloudwatchAlarms(Construct):
         CfnResource(
             self,
             "EFSPercentIOLimitAlarm",
-            type=globals.CLOUDWATCH_ALARM_TYPE,
+            type=stack_constants.CLOUDWATCH_ALARM_TYPE,
             properties={
                 "ActionsEnabled": False,
                 "MetricName": "PercentIOLimit",
@@ -232,7 +232,7 @@ class CloudwatchAlarms(Construct):
                 "DatapointsToAlarm": 1,
                 "Threshold": 100,  # Set threshold to 100% (trigger if >= 100%)
                 "ComparisonOperator": "GreaterThanOrEqualToThreshold",
-                "TreatMissingData": "missing",
+                "TreatMissingData": "notBreaching",
             },
         )
 
@@ -241,7 +241,7 @@ class CloudwatchAlarms(Construct):
             CfnResource(
                 self,
                 f"NATPortAllocationErrorAlarm-{public_subnet}",
-                type=globals.CLOUDWATCH_ALARM_TYPE,
+                type=stack_constants.CLOUDWATCH_ALARM_TYPE,
                 properties={
                     "ActionsEnabled": False,
                     "MetricName": "ErrorPortAllocation",
@@ -255,14 +255,14 @@ class CloudwatchAlarms(Construct):
                     "DatapointsToAlarm": 1,
                     "Threshold": 0,  # Set threshold to 0 (trigger if > 0)
                     "ComparisonOperator": "GreaterThanThreshold",
-                    "TreatMissingData": "missing",
+                    "TreatMissingData": "notBreaching",
                 },
             )
 
             CfnResource(
                 self,
                 f"NATPacketsDropCountAlarm-{public_subnet}",
-                type=globals.CLOUDWATCH_ALARM_TYPE,
+                type=stack_constants.CLOUDWATCH_ALARM_TYPE,
                 properties={
                     "ActionsEnabled": False,
                     "MetricName": "PacketsDropCount",
@@ -276,7 +276,7 @@ class CloudwatchAlarms(Construct):
                     "DatapointsToAlarm": 1,
                     "Threshold": 0,  # Set threshold to 0 (trigger if > 0)
                     "ComparisonOperator": "GreaterThanThreshold",
-                    "TreatMissingData": "missing",
+                    "TreatMissingData": "notBreaching",
                 },
             )
 
@@ -284,11 +284,11 @@ class CloudwatchAlarms(Construct):
         CfnResource(
             self,
             "CloudFront4xxErrorRateAlarm",
-            type=globals.CLOUDWATCH_ALARM_TYPE,
+            type=stack_constants.CLOUDWATCH_ALARM_TYPE,
             properties={
                 "ActionsEnabled": False,
                 "MetricName": "4xxErrorRate",
-                "Namespace": globals.CLOUD_FRONT_NAMESPACE,
+                "Namespace": stack_constants.CLOUDFRONT_NAMESPACE,
                 "Statistic": "Average",
                 "Dimensions": [
                     {"Name": "Region", "Value": "Global"},
@@ -302,18 +302,18 @@ class CloudwatchAlarms(Construct):
                 "DatapointsToAlarm": 1,
                 "Threshold": 1,  # Set threshold to 1% (trigger if > 1%)
                 "ComparisonOperator": "GreaterThanThreshold",
-                "TreatMissingData": "missing",
+                "TreatMissingData": "notBreaching",
             },
         )
 
         CfnResource(
             self,
             "CloudFront5xxErrorRateAlarm",
-            type=globals.CLOUDWATCH_ALARM_TYPE,
+            type=stack_constants.CLOUDWATCH_ALARM_TYPE,
             properties={
                 "ActionsEnabled": False,
                 "MetricName": "5xxErrorRate",
-                "Namespace": globals.CLOUD_FRONT_NAMESPACE,
+                "Namespace": stack_constants.CLOUDFRONT_NAMESPACE,
                 "Statistic": "Average",
                 "Dimensions": [
                     {"Name": "Region", "Value": "Global"},
@@ -327,18 +327,18 @@ class CloudwatchAlarms(Construct):
                 "DatapointsToAlarm": 1,
                 "Threshold": 0,  # Set threshold to 0% (trigger if > 0%)
                 "ComparisonOperator": "GreaterThanThreshold",
-                "TreatMissingData": "missing",
+                "TreatMissingData": "notBreaching",
             },
         )
 
         CfnResource(
             self,
             "CloudFrontTotalErrorRateAlarm",
-            type=globals.CLOUDWATCH_ALARM_TYPE,
+            type=stack_constants.CLOUDWATCH_ALARM_TYPE,
             properties={
                 "ActionsEnabled": False,
                 "MetricName": "TotalErrorRate",
-                "Namespace": globals.CLOUD_FRONT_NAMESPACE,
+                "Namespace": stack_constants.CLOUDFRONT_NAMESPACE,
                 "Statistic": "Average",
                 "Dimensions": [
                     {"Name": "Region", "Value": "Global"},
@@ -352,14 +352,14 @@ class CloudwatchAlarms(Construct):
                 "DatapointsToAlarm": 1,
                 "Threshold": 1,  # Set threshold to 1% (trigger if > 1%)
                 "ComparisonOperator": "GreaterThanThreshold",
-                "TreatMissingData": "missing",
+                "TreatMissingData": "notBreaching",
             },
         )
 
         CfnResource(
             self,
             "CloudFrontRequestsAnomalyAlarm",
-            type=globals.CLOUDWATCH_ALARM_TYPE,
+            type=stack_constants.CLOUDWATCH_ALARM_TYPE,
             properties={
                 "ActionsEnabled": False,
                 "Dimensions": [],
@@ -367,14 +367,14 @@ class CloudwatchAlarms(Construct):
                 "DatapointsToAlarm": 1,
                 "ThresholdMetricId": "ad1",
                 "ComparisonOperator": "LessThanLowerOrGreaterThanUpperThreshold",
-                "TreatMissingData": "missing",
+                "TreatMissingData": "notBreaching",
                 "Metrics": [
                     {
                         "Id": "m1",
                         "ReturnData": True,
                         "MetricStat": {
                             "Metric": {
-                                "Namespace": globals.CLOUD_FRONT_NAMESPACE,
+                                "Namespace": stack_constants.CLOUDFRONT_NAMESPACE,
                                 "MetricName": "Requests",
                                 "Dimensions": [
                                     {"Name": "Region", "Value": "Global"},
@@ -392,7 +392,7 @@ class CloudwatchAlarms(Construct):
                         "Id": "ad1",
                         "Label": "Requests (expected)",
                         "ReturnData": True,
-                        "Expression": globals.ANOMALY_DETECTION_BAND_2,
+                        "Expression": stack_constants.ANOMALY_DETECTION_BAND_2,
                     },
                 ],
             },
@@ -402,7 +402,7 @@ class CloudwatchAlarms(Construct):
         CfnResource(
             self,
             "WAFBlockedRequestsAnomalyAlarm",
-            type=globals.CLOUDWATCH_ALARM_TYPE,
+            type=stack_constants.CLOUDWATCH_ALARM_TYPE,
             properties={
                 "ActionsEnabled": False,
                 "Dimensions": [],
@@ -410,7 +410,7 @@ class CloudwatchAlarms(Construct):
                 "DatapointsToAlarm": 1,
                 "ThresholdMetricId": "ad1",
                 "ComparisonOperator": "GreaterThanUpperThreshold",
-                "TreatMissingData": "missing",
+                "TreatMissingData": "notBreaching",
                 "Metrics": [
                     {
                         "Id": "m1",
@@ -435,7 +435,7 @@ class CloudwatchAlarms(Construct):
                         "Id": "ad1",
                         "Label": "BlockedRequests (expected)",
                         "ReturnData": True,
-                        "Expression": globals.ANOMALY_DETECTION_BAND_2,
+                        "Expression": stack_constants.ANOMALY_DETECTION_BAND_2,
                     },
                 ],
             },
@@ -445,7 +445,7 @@ class CloudwatchAlarms(Construct):
         CfnResource(
             self,
             "GlueJobFailureAlarm",
-            type=globals.CLOUDWATCH_ALARM_TYPE,
+            type=stack_constants.CLOUDWATCH_ALARM_TYPE,
             properties={
                 "ActionsEnabled": False,
                 "MetricName": "glue.error.ALL",
@@ -460,6 +460,6 @@ class CloudwatchAlarms(Construct):
                 "DatapointsToAlarm": 1,
                 "Threshold": 0,
                 "ComparisonOperator": "GreaterThanThreshold",
-                "TreatMissingData": "missing",
+                "TreatMissingData": "notBreaching",
             },
         )

@@ -15,7 +15,7 @@ from aws_cdk.aws_iam import Effect, PolicyStatement
 from aws_cdk.aws_events import CfnRule
 from aws_cdk.aws_lambda import CfnPermission
 
-import prebid_server.stack_constants as globals
+import prebid_server.stack_constants as stack_constants
 from aws_lambda_layers.aws_solutions.layer import SolutionsLayer
 from aws_solutions.cdk.aws_lambda.python.function import SolutionsPythonFunction
 
@@ -72,7 +72,7 @@ class CloudwatchMetricsConstruct(Construct):
         self.cloudwatch_metrics_function = SolutionsPythonFunction(
             self,
             "CloudwatchMetricsFunction",
-            globals.CUSTOM_RESOURCES_PATH
+            stack_constants.CUSTOM_RESOURCES_PATH
             / "cloudwatch_metrics"
             / "cloudwatch_metrics_report.py",
             "event_handler",
@@ -90,6 +90,7 @@ class CloudwatchMetricsConstruct(Construct):
                 "SUBNET_IDS": json.dumps(kwargs["public_subnets"]),
                 "LOAD_BALANCER_NAME": kwargs["load_balancer_full_name"],
                 "SEND_ANONYMIZED_DATA": self._send_anonymous_usage_data(),
+                "ELASTICACHE_CLUSTER_ID": kwargs["elasticache_cluster_id"]
             },
             layers=[SolutionsLayer.get_or_create(self)],
         )

@@ -23,7 +23,8 @@ RUN wget -O /etc/apk/keys/amazoncorretto.rsa.pub https://apk.corretto.aws/amazon
         maven=3.9.9-r0 \
         git \
         jq \
-        binutils
+        binutils \
+        bash
 
 # Set JAVA_HOME
 ENV JAVA_HOME=/usr/lib/jvm/java-21-amazon-corretto
@@ -42,11 +43,19 @@ java.net.http,java.security.sasl,jdk.naming.dns,jdk.crypto.ec,jdk.security.auth 
 # Copy source build configuration file
 COPY docker-build-config.json docker-build-config.json
 
+# Copy extra-modules
+COPY extra-modules extra-modules/
+
 # Clone and build in single layer to reduce size
-RUN git clone --single-branch --branch master --depth 1 https://github.com/prebid/prebid-server-java.git && \
+RUN git clone --single-branch --branch master --depth 1 $(jq -r .GIT_REPO_URL ./docker-build-config.json) && \
     cd prebid-server-java && \
     git fetch origin --tags && \
     git checkout $(jq -r .GIT_TAG_VERSION ../docker-build-config.json) && \
+    test -z "$(git ls-files -u)" || (echo "Merge conflict detected!" && exit 1) && \
+    cp -rv ../extra-modules/log-module-reporter/psdoa src/main/java/org/prebid/server/analytics/reporter/ && \
+    cp -rv ../extra-modules/log-module-reporter/config/* src/main/java/org/prebid/server/spring/config/ && \
+    mkdir -p /src/test/java/org/prebid/server/analytics/reporter/psdoa/ && \
+    cp -rv ../extra-modules/log-module-reporter/test/PsdoaAnalyticsReporterTest.java /src/test/java/org/prebid/server/analytics/reporter/psdoa/ && \
     mvn clean package $(jq -r .MVN_CLI_OPTIONS ../docker-build-config.json) && \
     rm -rf ~/.m2/ && rm -rf /tmp/*
 
@@ -69,7 +78,7 @@ RUN mkdir -p /usr/bin && \
     ln -s ${JAVA_HOME}/bin/jps /usr/bin/jps
 
 # Install only required packages in single layer
-RUN apk --no-cache add curl aws-cli bind-tools && \
+RUN apk --no-cache add curl aws-cli bind-tools openssl && \
     rm -rf /var/cache/apk/*
 
 # Set JVM options for DNS resolution
@@ -86,7 +95,7 @@ ENV JAVA_OPTS="\
     -Djdk.tls.client.protocols=TLSv1.2,TLSv1.3"
 
 # Expose ports for the Prebid Server Java application
-EXPOSE 8080 8060
+EXPOSE 8443 8060
 
 # Set the entrypoint to execute the bootstrap script
 ENTRYPOINT ["sh", "../bootstrap.sh"]

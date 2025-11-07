@@ -1,35 +1,70 @@
+# Guidance for Deploying a Prebid Server on AWS
 
-# Prebid Server Deployment on AWS
+## Table of Contents
+1. [Overview](#overview)
+2. [Cost](#cost)
+3. [Prerequisites](#prerequisites)
+4. [Deployment Steps](#deployment-steps)
+5. [Deployment Validation](#deployment-validation)
+6. [Running the Guidance](#running-the-guidance)
+7. [Next Steps](#next-steps)
+8. [Cleanup](#cleanup)
+9. [FAQ, Known Issues, Additional Considerations, and Limitations](#faq-known-issues-additional-considerations-and-limitations)
+10. [Revisions](#revisions)
+11. [Notices](#notices)
+12. [Authors](#authors)
 
-This solution deploys v3.13.0 of [Prebid Server Java](https://github.com/prebid/prebid-server-java.git) with infrastructure in a single region of the AWS Cloud to handle a wide range of request traffic, and recording of auction and bid transaction data.
+## Overview
 
-## Architecture 
+Guidance for Deploying a Prebid Server on AWS helps customers deploy and operate Prebid Server, an open source solution for real-time ad monetization, in their own AWS environment. The solution enables customers with ad-supported websites to achieve scaled access to advertising revenue through a community of more than 180+ advertising platforms. Customers achieve full control over decision logic and access to transaction data, and realize AWS benefits like global scalability and pay-as-you-go economics.
 
-The following image shows the top-level architecture of the Prebid Server Deployment on AWS.
+This solution deploys v3.27.0 of [Prebid Server Java](https://github.com/prebid/prebid-server-java.git) with infrastructure in a single region of the AWS Cloud to handle a wide range of request traffic, and recording of auction and bid transaction data.
 
-![Prebid Server Deployment on AWS](docs/prebid-server-deployment-on-aws.png)
+![Guidance for Deploying a Prebid Server on AWS](docs/prebid-server-deployment-on-aws.png)
 
-**Note**: From v1.0.0, AWS CloudFormation template resources are created by the [AWS CDK](https://aws.amazon.com/cdk/) 
-and [AWS Solutions Constructs](https://aws.amazon.com/solutions/constructs/). 
+### Key Features
 
-### AWS CDK Constructs 
+- **Prebid Server purpose built for AWS infrastructure**: Deploy Prebid Server in a scalable and cost-efficient manner with production-grade availability, scalability, and low-latency for a variety of request loads (documented up to 100,000 RPS).
 
-[AWS CDK Solutions Constructs](https://aws.amazon.com/solutions/constructs/) make it easier to consistently create
-well-architected applications. All AWS Solutions Constructs are reviewed by AWS and use best practices established by 
-the AWS Well-Architected Framework. 
+- **Built-in observability**: Operational resource metrics, alarms, runtime logs, and business metrics, visualized with the Cost and Usage Dashboard powered by Amazon QuickSight and Service Catalog AppRegistry.
 
-## Deployment
+- **Decrease time to market**: Deployment template to establish the necessary infrastructure to get customers running within days instead of months or weeks.
 
-You can launch this solution with one click from the AWS Solutions [landing page](https://aws.amazon.com/solutions/implementations/prebid-server-deployment-on-aws/). 
+- **Ownership of all operational and business data**: All data from Prebid Server metrics extract, transform, and load (ETL) to AWS Glue Data Catalog for seamless integration with various clients, such as Amazon Athena, Amazon Redshift, and Amazon SageMaker AI.
 
-To customize the solution, or to contribute to the solution, see [Creating a custom build](#creating-a-custom-build)
+- **Integration with Service Catalog AppRegistry and Application Manager**: Centrally manage the solution's resources and enable application search, reporting, and management actions.
 
+### Architecture
 
-## Creating a custom build 
-To customize the solution, follow the steps below: 
+The solution uses AWS CDK and AWS Solutions Constructs to create well-architected applications. All AWS Solutions Constructs are reviewed by AWS and use best practices established by the AWS Well-Architected Framework.
 
-### Prerequisites
-The following procedures assumes that all the OS-level configuration has been completed. They are:
+## Cost
+
+You are responsible for the cost of the AWS services used while running this Guidance. As of July 2023, the cost for running this Guidance with the default settings in the US East (N. Virginia) Region is approximately $241.50 per month for processing with no incoming bidding traffic to the solution.
+
+We recommend creating a [Budget](https://docs.aws.amazon.com/cost-management/latest/userguide/budgets-managing-costs.html) through [AWS Cost Explorer](https://aws.amazon.com/aws-cost-management/aws-cost-explorer/) to help manage costs. Prices are subject to change. For full details, refer to the pricing webpage for each AWS service used in this Guidance.
+
+### Sample Cost Table
+
+The following table provides a sample cost breakdown for deploying this Guidance with the default parameters in the US East (N. Virginia) Region for one month with no incoming bidding traffic:
+
+| AWS service  | Dimensions | Cost [USD] |
+| ----------- | ------------ | ------------ |
+| Amazon ECS | Operating system (Linux), CPU architecture (x86), Average duration (30 days), Number of tasks or pods (2 per month), Amount of memory allocated (4 GB), Amount of ephemeral storage allocated for Amazon ECS (20 GB) | $54.50 |
+| AWS WAF | Number of Web Access Control Lists (Web ACLs) utilized (1 per month), Number of Managed Rule Groups per Web ACL (6 per month) | $15.00 |
+| Elastic Load Balancing | Number of Application Load Balancers (1) | $17.00 |
+| Amazon EC2 - other | Number of NAT gateways (2) DT inbound: Not selected (0 TB per month), DT outbound: Internet (<50 GB per month), DT Intra-Region: (0 TB per month) | $69.00 |
+| Amazon EFS | Desired storage capacity (1 TB per month), Infrequent access requests (<2 GB per month) | $25.00 |
+| Amazon S3 | S3 Standard storage | $4.00 |
+| Amazon CloudWatch | Number of Standard Resolution Alarm Metrics (20), Standard logs: Data ingested (<20 GB) | $10.00 |
+| Other services | Amazon CloudFront, AWS CloudTrail AWS DataSync, IAM, AWS Glue, AWS KMS, AWS Lambda, and Amazon VPC | $47.00 |
+| **Total** | | **$241.50** |
+
+## Prerequisites
+
+### Operating System
+
+These deployment instructions are optimized to best work on **macOS, Linux, or Windows**. The following packages and tools are required:
 
 * [AWS Command Line Interface](https://aws.amazon.com/cli/)
 * [Python](https://www.python.org/) 3.11 or newer
@@ -42,102 +77,82 @@ The following procedures assumes that all the OS-level configuration has been co
 * [Docker](https://docs.docker.com/engine/)
 * [AWS access key ID and secret access key](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html) configured in your environment with AdministratorAccess equivalent permissions
 
-> **Please ensure you test the templates before updating any production deployments.**
+### AWS account requirements
 
-### 1. Download or clone this repo
-```
-git clone https://github.com/aws-solutions/prebid-server-deployment-on-aws.git
-```
+You need an AWS account with AdministratorAccess equivalent permissions to deploy this solution.
 
-### 2. Create a Python virtual environment for development 
-```bash 
-cd prebid-server-deployment-on-aws
-python3 -m venv .venv 
-source ./.venv/bin/activate 
-cd ./source 
-pip install -r requirements-poetry.txt
-poetry install
-```
+### aws cdk bootstrap
 
-### 2. After introducing changes, run the unit tests to make sure the customizations don't break existing functionality
-```bash
-sh ../deployment/run-unit-tests.sh --in-venv 1
-```
-
-### 3. Build the solution for deployment
-
-#### Prebid Server Container Image
-By default, the Prebid Server container image will be built locally using Docker ([README](deployment/ecr/prebid-server/README.md)). If you prefer to use a remote image (from ECR or Docker Hub), set the following environment variable with your fully qualified image name before building the template:
+This Guidance uses aws-cdk. If you are using aws-cdk for the first time, please perform the bootstrapping:
 
 ```bash
-export OVERRIDE_ECR_REGISTRY=your-fully-qualified-image-name
-```
-
-#### Using AWS CDK (recommended) 
-Packaging and deploying the solution with the AWS CDK allows for the most flexibility in development
-```bash 
-cd ./infrastructure 
-
-# set environment variables required by the solution
-export BUCKET_NAME="my-bucket-name"
-
-# bootstrap CDK (required once - deploys a CDK bootstrap CloudFormation stack for assets)  
 cdk bootstrap --cloudformation-execution-policies arn:aws:iam::aws:policy/AdministratorAccess
-
-# build the solution 
-cdk synth
-
-# build and deploy the solution 
-cdk deploy
 ```
 
-#### Using the solution build tools 
-It is highly recommended to use the AWS CDK to deploy this solution (using the instructions above). While CDK is used to
-develop the solution, to package the solution for release as a CloudFormation template, use the `build-s3-cdk-dist`
-build tool: 
+## Deployment Steps
 
-```bash
-cd ./deployment
+1. Clone the repo using command:
+   ```bash
+   git clone https://github.com/aws-solutions-library-samples/prebid-server-deployment-on-aws.git
+   ```
 
-export DIST_BUCKET_PREFIX=my-bucket-name  
-export SOLUTION_NAME=my-solution-name  
-export VERSION=my-version  
-export REGION_NAME=my-region
-export OVERRIDE_ECR_REGISTRY=my-ecr-registry
+2. Change to the repo folder:
+   ```bash
+   cd deploying-prebid-server-on-aws
+   ```
 
-build-s3-cdk-dist deploy \
-  --source-bucket-name $DIST_BUCKET_PREFIX \
-  --solution-name $SOLUTION_NAME \
-  --version_code $VERSION \
-  --cdk-app-path ../source/infrastructure/app.py \
-  --cdk-app-entrypoint app:build_app \
-  --region $REGION_NAME \
-  --sync
-```
+3. Create a Python virtual environment for development:
+   ```bash
+   python3 -m venv .venv 
+   source ./.venv/bin/activate 
+   cd ./source 
+   pip install -r requirements-poetry.txt
+   poetry install
+   ```
 
-**Parameter Details**
-- `$DIST_BUCKET_PREFIX` - The S3 bucket name prefix. A randomized value is recommended. You will need to create an 
-  S3 bucket where the name is `<DIST_BUCKET_PREFIX>-<REGION_NAME>`. The solution's CloudFormation template will expect the
-  source code to be located in the bucket matching that name.
-- `$SOLUTION_NAME` - The name of This solution (example: solution-customization)
-- `$VERSION` - The version number to use (example: v0.0.1)
-- `$REGION_NAME` - The region name to use (example: us-east-1)
-- `$OVERRIDE_ECR_REGISTRY` - The ecr-registry to use (example: public.ecr.aws/abc12345/prebid-server:latest)
+4. After introducing changes, run the unit tests to make sure the customizations don't break existing functionality:
+   ```bash
+   cd ../deployment
+   sh ./run-unit-tests.sh --in-venv 1
+   ```
 
-This will result in all global assets being pushed to the `DIST_BUCKET_PREFIX`, and all regional assets being pushed to 
-`DIST_BUCKET_PREFIX-<REGION_NAME>`. If your `REGION_NAME` is us-east-1, and the `DIST_BUCKET_PREFIX` is
-`my-bucket-name`, ensure that both `my-bucket-name` and `my-bucket-name-us-east-1` exist and are owned by you. 
+5. Build the solution for deployment:
 
-After running the command, you can deploy the template:
+   **Prebid Server Container Image**
+   
+   By default, the Prebid Server container image will be built locally using Docker ([README](deployment/ecr/README.md)). If you prefer to use a remote image (from ECR or Docker Hub), set the following environment variable with your fully qualified image name before building the template:
 
-* Get the link of the `SOLUTION_NAME.template` uploaded to your Amazon S3 bucket
-* Deploy the solution to your account by launching a new AWS CloudFormation stack using the link of the template above.
+   ```bash
+   export OVERRIDE_ECR_REGISTRY=your-fully-qualified-image-name
+   ```
 
-> **Note:** `build-s3-cdk-dist` will use your current configured `AWS_REGION` and `AWS_PROFILE`. To set your defaults, install the [AWS Command Line Interface](https://aws.amazon.com/cli/) and run `aws configure`.
+   **Using AWS CDK (recommended)**
+   
+   Packaging and deploying the solution with the AWS CDK allows for the most flexibility in development:
+   ```bash
+   cd ../source/infrastructure
 
-> **Note:** You can drop `--sync` from the command to only perform the build and synthesis of the template without uploading to a remote location. This is helpful when testing new changes to the code.
+   # bootstrap CDK (required once - deploys a CDK bootstrap CloudFormation stack for assets)  
+   cdk bootstrap --cloudformation-execution-policies arn:aws:iam::aws:policy/AdministratorAccess
 
-## Prebid Server Java Container Customization
+   # build the solution 
+   cdk synth
+
+   # build and deploy the solution 
+   cdk deploy
+   ```
+
+## Deployment Validation
+
+After deploying the solution:
+
+1. Open the CloudFormation console and verify the status of the template with the name starting with your solution name.
+2. If deployment is successful, you should see an active ECS cluster with the Prebid Server tasks running.
+3. Verify that the Application Load Balancer is in service.
+
+## Running the Guidance
+
+### Prebid Server Java Container Customization
 
 You may choose to customize the container configuration, or create your own container to use with this solution. The infrastructure for this solution has only been tested on Prebid Server Java.
 
@@ -145,45 +160,78 @@ You may choose to customize the container configuration, or create your own cont
 * After deploying the CloudFormation template stack, find the S3 bucket in the CloudFormation stack outputs named `ContainerImagePrebidSolutionConfigBucket`.
 1. Review the `/prebid-server/default/README.md` and `/prebid-server/current/README.md` files in the bucket.
 2. Upload your changes to the `/prebid-server/current/` prefix in that bucket.
-3. To update the ECS service manually, navigate to the Amazon ECS cluster associated with the deployed CloudFormation stack using the AWS Management Console. Then, update the ECS service by selecting the 'Force New Deployment' option with the new task definition version, as described in the official AWS documentation for updating an ECS service via the console. [ref](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/update-service-console-v2.html).[ref](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/update-service-console-v2.html).
+3. To update the ECS service manually, navigate to the Amazon ECS cluster associated with the deployed CloudFormation stack using the AWS Management Console. Then, update the ECS service by selecting the 'Force New Deployment' option with the new task definition version.
 
 ### Runtime and Metric Logging for ETL
 
-The Prebid Server container shipped with this solution is configured for two types of logging.
+The Prebid Server container shipped with this solution is configured for two types of logging:
 
-Runtime logs from the Prebid Server are sent to CloudWatch logs under the `PrebidContainerLogGroup` log group. This log group collects runtime logs for all containers and includes the container ID from ECS. Container logs are available to use with CloudWatch Log Insights and Live Tailing.
+1. Runtime logs from the Prebid Server are sent to CloudWatch logs under the `PrebidContainerLogGroup` log group.
+2. Metrics output logs are written to `/mnt/efs/metrics/CONTAINER_ID/prebid-metrics.log` with a default interval of 30 seconds.
+3. Rotated logs are stored at `/mnt/efs/metrics/CONTAINER_ID/archived/prebid-metrics.TIMESTAMP.log.gz` and are migrated from EFS to S3 by AWS DataSync.
 
-Review the file named `deployment/ecr/prebid-server/prebid-logging.xml` for the required locations of log file output. Resources outside of the containers instances, including Lambda Functions and AWS DataSync jobs, expect to find log files at the following locations.
+### Analytics Reporter Configuration
 
-* `/mnt/efs/metrics/CONTAINER_ID/prebid-metrics.log` is where the current metrics output log is written. The default interval for outputting metrics to this file is 30 seconds.
-* `/mnt/efs/metrics/CONTAINER_ID/archived/prebid-metrics.TIMESTAMP.log.gz`is where logs are rotated on a schedule. This location is scanned by AWS DataSync periodically to migrate logs from EFS to S3 for the ETL process to AWS Glue Catalog. Rotated logs are removed from EFS after migration to S3.
+The solution includes a custom analytics adapter for Prebid Server. By default, the analytics integration is disabled in the [prebid-config.yaml](deployment/ecr/prebid-server/default-config/prebid-config.yaml)
 
-The value for `CONTAINER_ID` and `TIMESTAMP` is available within the logging environment and is used in the `prebid-logging.xml` configuration file.
+```yaml
+analytics:
+  global:
+    adapters: "psdoaAnalytics"  # Specifies the custom analytics adapter
+  psdoa:
+    enabled: ${LOG_ANALYTICS_ENABLED}  # Enables or Disables psdoa analytics integration
+```
 
-### Container Hosting and Deploy
+To enable psdoaAnalytics, set LOG_ANALYTICS_ENABLED=true
 
-To build a different **version** of Prebid Server Java using this solution:
-* Review the release tags on the Prebid Server Java public repository
-* Update the file `deployment/ecr/prebid-server/config.json` with the version of Prebid Server Java you want to use (version numbers are in the format MAJOR.MINOR.PATCH)
-* Build the solution, host it in one or more S3 buckets, and deploy using the process described earlier in the README
+```bash
+export LOG_ANALYTICS_ENABLED=true
+```
 
-If you'd like to use a different container:
-* Build and host your new container image in ECR or Docker Hub
-* Copy the complete URI, including the tag, for your new container
-* Build and host the solution assets for installation in your account using the process described above
-* Change to the `deployment/global-s3-assets` folder on the build workstation
-* Open the file `prebid-server-deployment-on-aws.template` in an editor
-* Find the line in the template under the Task Definition resource that is `"Image": "public.ecr.aws/aws-solutions/prebid-server:v1.1.5",`
-* Update the Image property value with your container image URI
-* Create the stack by uploading the changed template to the CloudFormation console
+## Next Steps
 
-You can host the updated template in a bucket of your choosing or place the updated template in your organization's storage or source repository.
+After deploying the solution, consider the following next steps:
+1. Follow the instructions in the [loadtest component readme](./source/loadtest/README.md) to deploy a demo bidder application and test it with the pre-bid server or load test the deployment.
+2. **Customize Prebid Server Configuration**: Modify the configuration files in the S3 bucket to match your specific requirements.
+3. **Enable Analytics**: Enable the psdoaAnalytics adapter to collect and analyze auction data.
+4. **Set Up Monitoring**: Configure additional CloudWatch alarms or dashboards to monitor the performance of your Prebid Server.
+5. **Integrate with Your Applications**: Update your client applications to use the deployed Prebid Server.
+6. **Optimize for Cost**: Review the cost tables and adjust the infrastructure based on your actual traffic patterns.
 
+## Cleanup
+
+To delete the deployed solution:
+
+1. Navigate to the AWS CloudFormation console.
+2. Select the stack that was created for this solution.
+3. Click "Delete" and confirm the deletion.
+4. Note that some resources like S3 buckets with content may require manual deletion.
+
+## FAQ, Known Issues, Additional Considerations, and Limitations
+
+### Additional considerations
+
+- This solution creates a public AWS bucket required for the use-case.
+- The solution creates unauthenticated public API endpoints.
+
+For any feedback, questions, or suggestions, please use the issues tab under the [GitHub repository](https://github.com/aws-solutions-library-samples/prebid-server-deployment-on-aws).
+
+## Revisions
+See [CHANGELOG.md](./CHANGELOG.md) for revisions.
+
+## Notices
+
+Customers are responsible for making their own independent assessment of the information in this Guidance. This Guidance: (a) is for informational purposes only, (b) represents AWS current product offerings and practices, which are subject to change without notice, and (c) does not create any commitments or assurances from AWS and its affiliates, suppliers or licensors. AWS products or services are provided "as is" without warranties, representations, or conditions of any kind, whether express or implied. AWS responsibilities and liabilities to its customers are controlled by AWS agreements, and this Guidance is not part of, nor does it modify, any agreement between AWS and its customers.
 
 ## Collection of operational metrics
+
 This solution collects anonymized operational metrics to help AWS improve the quality of features of the solution.
 For more information, including how to disable this capability, please see the [implementation guide](https://docs.aws.amazon.com/solutions/latest/prebid-server-deployment-on-aws/anonymized-data-collection.html).
- 
+
+## Authors
+
+For a list of contributors, please see [Contributors](https://docs.aws.amazon.com/solutions/latest/prebid-server-deployment-on-aws/contributors.html).
+
 ***
 
 Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.

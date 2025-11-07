@@ -10,29 +10,26 @@ import os
 import boto3
 from botocore import config
 from aws_lambda_powertools import Logger
-try:
-    from cloudwatch_metrics import metrics
-except ImportError:
-    from aws_lambda_layers.metrics_layer.python.cloudwatch_metrics import metrics
-try:
-    from datasync_reports import reports
-except ImportError:
-    from aws_lambda_layers.datasync_s3_layer.python.datasync_reports import reports
+from cloudwatch_metrics import metrics
+from datasync_reports import reports
 
 
 logger = Logger(utc=True, service="efs-cleanup-lambda")
 
 EFS_MOUNT_PATH = os.environ["EFS_MOUNT_PATH"]
 METRICS_TASK_ARN = os.environ["METRICS_TASK_ARN"]
+ANALYTICS_TASK_ARN = os.environ["ANALYTICS_TASK_ARN"]
 METRICS_NAMESPACE = os.environ['METRICS_NAMESPACE']
 RESOURCE_PREFIX = os.environ['RESOURCE_PREFIX']
 DATASYNC_REPORT_BUCKET = os.environ["DATASYNC_REPORT_BUCKET"]
 AWS_ACCOUNT_ID = os.environ["AWS_ACCOUNT_ID"]
 EFS_METRICS = os.environ["EFS_METRICS"]
 EFS_LOGS = os.environ["EFS_LOGS"]
+EFS_ANALYTICS = os.environ["EFS_ANALYTICS"]
 
 DIRECTORY_MAP = {
-    METRICS_TASK_ARN: EFS_METRICS
+    METRICS_TASK_ARN: EFS_METRICS,
+    ANALYTICS_TASK_ARN: EFS_ANALYTICS
 }
 SOLUTION_VERSION = os.environ["SOLUTION_VERSION"]
 SOLUTION_ID = os.environ["SOLUTION_ID"]

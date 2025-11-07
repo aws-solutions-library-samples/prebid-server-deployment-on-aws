@@ -4,8 +4,8 @@
 import requests
 import os
 
-
 CLOUDFRONT_ENDPOINT = os.environ["CLOUDFRONT_ENDPOINT"]
+
 contentType = "application/json"
 method = "GET"
 auctionMethod = "POST"

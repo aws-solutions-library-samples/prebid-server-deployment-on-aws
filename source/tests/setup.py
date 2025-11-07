@@ -16,7 +16,7 @@ VERSION = cdk_json["context"]["SOLUTION_VERSION"]
 setuptools.setup(
     name="unit-tests",
     version=VERSION,
-    description="Unit tests for Prebid Server Deployment on AWS",
+    description="Unit tests for Guidance for Deploying a Prebid Server on AWS",
     long_description=long_description,
     long_description_content_type="text/markdown",
     author="AWS Solutions Builders",

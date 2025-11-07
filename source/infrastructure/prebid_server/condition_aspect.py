@@ -3,7 +3,7 @@
 
 import jsii
 import aws_cdk
-from aws_cdk import CfnCondition, CfnResource
+from aws_cdk import CfnCondition, CfnResource, CfnOutput
 from constructs import Construct, IConstruct
 
 
@@ -16,4 +16,6 @@ class ConditionAspect(Construct):
 
     def visit(self, node: IConstruct) -> None:
         if isinstance(node, CfnResource) and node.cfn_options:
-                node.cfn_options.condition = self.condition
+            node.cfn_options.condition = self.condition
+        if isinstance(node, CfnOutput):
+            node.condition = self.condition
