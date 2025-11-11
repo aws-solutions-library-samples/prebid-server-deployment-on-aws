@@ -8,7 +8,7 @@ from constructs import Construct
 from aws_lambda_layers.aws_solutions.layer import SolutionsLayer
 from aws_solutions.cdk.aws_lambda.layers.aws_lambda_powertools import PowertoolsLayer
 from aws_solutions.cdk.aws_lambda.python.function import SolutionsPythonFunction
-import prebid_server.stack_constants as globals
+import prebid_server.stack_constants as stack_constants
 import uuid
 
 
@@ -16,7 +16,8 @@ class ArtifactsManager(Construct):
     def __init__(self, scope: Construct, id: str, **kwargs):
         super().__init__(scope, id, **kwargs)
 
-        self.bucket = self.create_artifact_bucket()
+        self.id = id
+        self.artifacts_bucket = self.create_artifact_bucket()
         self.upload_artifacts_function = self.create_custom_resource_lambda()
         self.custom_resource = self.create_custom_resource(
             service_token_function=self.upload_artifacts_function
@@ -76,14 +77,14 @@ class ArtifactsManager(Construct):
 
         # Set lifecycle policy for removing datasync reports
         bucket.add_lifecycle_rule(
-            expiration=Duration.days(globals.DATASYNC_REPORT_LIFECYCLE_DAYS),
+            expiration=Duration.days(stack_constants.DATASYNC_REPORT_LIFECYCLE_DAYS),
             prefix="datasync",
         )
 
         # This bucket prefix is used for operation of the glue job in table partitioning
         # Object do not need to be stored and can be removed
         bucket.add_lifecycle_rule(
-            expiration=Duration.days(globals.GLUE_ATHENA_OUTPUT_LIFECYCLE_DAYS),
+            expiration=Duration.days(stack_constants.GLUE_ATHENA_OUTPUT_LIFECYCLE_DAYS),
             prefix="athena",
         )
 
@@ -130,8 +131,8 @@ class ArtifactsManager(Construct):
                                 "s3:ListBucket",
                             ],
                             resources=[
-                                self.bucket.bucket_arn,
-                                f"{self.bucket.bucket_arn}/*",
+                                self.artifacts_bucket.bucket_arn,
+                                f"{self.artifacts_bucket.bucket_arn}/*",
                             ],
                             conditions={
                                 "StringEquals": {
@@ -143,15 +144,15 @@ class ArtifactsManager(Construct):
                 ),
             },
         )
-        custom_resource_role.node.add_dependency(self.bucket)
-        self.bucket.encryption_key.grant_encrypt_decrypt(custom_resource_role)
+        custom_resource_role.node.add_dependency(self.artifacts_bucket)
+        self.artifacts_bucket.encryption_key.grant_encrypt_decrypt(custom_resource_role)
         role_l1_construct = custom_resource_role.node.find_child(id='Resource')
         role_l1_construct.add_metadata('guard', {'SuppressedRules': ['IAM_NO_INLINE_POLICY_CHECK']})
 
         upload_artifacts_function = SolutionsPythonFunction(
             self,
             "CrFunction",
-            globals.CUSTOM_RESOURCES_PATH
+            stack_constants.CUSTOM_RESOURCES_PATH
             / "artifacts_bucket_lambda"
             / "upload_files.py",
             "event_handler",
@@ -179,10 +180,10 @@ class ArtifactsManager(Construct):
     def create_custom_resource(self, service_token_function) -> CustomResource:
         custom_resource = CustomResource(
             self,
-            f"Upload{id}Cr",
+            f"Upload{self.id}Cr",
             service_token=service_token_function.function_arn,
             properties={
-                "artifacts_bucket_name": self.bucket.bucket_name,
+                "artifacts_bucket_name": self.artifacts_bucket.bucket_name,
                 "custom_resource_uuid": str(uuid.uuid4())  # random uuid to trigger redeploy on stack update
             },
         )

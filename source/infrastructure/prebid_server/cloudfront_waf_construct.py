@@ -15,7 +15,7 @@ from aws_lambda_layers.aws_solutions.layer import SolutionsLayer
 from aws_solutions.cdk.aws_lambda.layers.aws_lambda_powertools import PowertoolsLayer
 from aws_solutions.cdk.aws_lambda.python.function import SolutionsPythonFunction
 from constructs import Construct
-import prebid_server.stack_constants as globals
+import prebid_server.stack_constants as stack_constants
 
 
 class CloudFrontWafConstruct(Construct):
@@ -24,48 +24,12 @@ class CloudFrontWafConstruct(Construct):
             scope,
             id,
             prebid_alb,
+            x_header_secret_value
     ) -> None:
         """
         This construct creates CloudFront and Waf resources
         """
         super().__init__(scope, id)
-
-        # Custom resource for Cloudfront header secret
-        header_secret_gen_function = SolutionsPythonFunction(
-            self,
-            "HeaderSecretGenFunction",
-            globals.CUSTOM_RESOURCES_PATH
-            / "header_secret_lambda"
-            / "header_secret_gen.py",
-            "event_handler",
-            runtime=aws_lambda.Runtime.PYTHON_3_11,
-            description="Lambda function for header secret generation",
-            timeout=Duration.minutes(1),
-            memory_size=256,
-            architecture=aws_lambda.Architecture.ARM_64,
-            layers=[
-                PowertoolsLayer.get_or_create(self),
-                SolutionsLayer.get_or_create(self),
-            ],
-            environment={
-                "SOLUTION_ID": self.node.try_get_context("SOLUTION_ID"),
-                "SOLUTION_VERSION": self.node.try_get_context("SOLUTION_VERSION"),
-            }
-        )
-        # Suppress the cfn_guard rules indicating that this function should operate within a VPC and have reserved concurrency.
-        # A VPC is not necessary for this function because it does not need to access any resources within a VPC.
-        # Reserved concurrency is not necessary because this function is invoked infrequently.
-        header_secret_gen_function.node.find_child(id='Resource').add_metadata("guard", {
-            'SuppressedRules': ['LAMBDA_INSIDE_VPC', 'LAMBDA_CONCURRENCY_CHECK']})
-
-        header_secret_gen_custom_resource = CustomResource(
-            self,
-            "HeaderSecretGenCr",
-            service_token=header_secret_gen_function.function_arn,
-            properties={},
-        )
-        self.x_header_secret_value = header_secret_gen_custom_resource.get_att_string("header_secret_value")
-
 
         # create s3 bucket for cloudfront distribution access logs
         cloudfront_access_logs_bucket_key = kms.Key(
@@ -106,20 +70,21 @@ class CloudFrontWafConstruct(Construct):
         cloudfront_access_logs_bucket.node.default_child.override_logical_id("CloudFrontAccessLogsBucket337A74EE")
         # Suppress the cfn_guard rule for S3 bucket logging. Such logging in not useful for this bucket
         # since it is not used to store customer data.
-        cloudfront_access_logs_bucket.node.default_child.add_metadata("guard", {'SuppressedRules': ['S3_BUCKET_LOGGING_ENABLED']})
+        cloudfront_access_logs_bucket.node.default_child.add_metadata("guard", {
+            'SuppressedRules': ['S3_BUCKET_LOGGING_ENABLED']})
 
         # Create a reference to a managed CloudFront Response Headers Policy
         response_headers_policy = cloudfront.ResponseHeadersPolicy.from_response_headers_policy_id(
             self,
             "CloudFrontResponseHeadersPolicy",
-            globals.RESPONSE_HEADERS_POLICY_ID,
+            stack_constants.RESPONSE_HEADERS_POLICY_ID,
         )
 
         # Custom resource for getting prefix list ID
         get_prefix_id_function = SolutionsPythonFunction(
             self,
             "GetPrefixIdFunction",
-            globals.CUSTOM_RESOURCES_PATH / "prefix_id_lambda" / "get_prefix_id.py",
+            stack_constants.CUSTOM_RESOURCES_PATH / "prefix_id_lambda" / "get_prefix_id.py",
             "event_handler",
             runtime=aws_lambda.Runtime.PYTHON_3_11,
             description="Lambda function for getting prefix list ID",
@@ -188,7 +153,7 @@ class CloudFrontWafConstruct(Construct):
         create_waf_web_acl_function = SolutionsPythonFunction(
             self,
             "CreateWafWebAclFunction",
-            globals.CUSTOM_RESOURCES_PATH
+            stack_constants.CUSTOM_RESOURCES_PATH
             / "waf_webacl_lambda"
             / "create_waf_webacl.py",
             "event_handler",
@@ -204,6 +169,8 @@ class CloudFrontWafConstruct(Construct):
             environment={
                 "SOLUTION_ID": self.node.try_get_context("SOLUTION_ID"),
                 "SOLUTION_VERSION": self.node.try_get_context("SOLUTION_VERSION"),
+                "SOLUTION_APPLICATION_TYPE": stack_constants.SOLUTION_APPLICATION_TYPE,
+                "SOLUTION_NAME": self.node.try_get_context("SOLUTION_NAME"),
             }
         )
 
@@ -221,24 +188,19 @@ class CloudFrontWafConstruct(Construct):
         )
 
         create_waf_web_acl_function.node.add_dependency(waf_web_acl_function_waf_policy)
-        create_waf_web_acl_function.role.attach_inline_policy(
-            waf_web_acl_function_waf_policy
-        )
+
+        create_waf_web_acl_function.role.attach_inline_policy(waf_web_acl_function_waf_policy)
 
         waf_webacl_arn = create_waf_web_acl_custom_resource.get_att_string("webacl_arn")
-        self.waf_webacl_name = create_waf_web_acl_custom_resource.get_att_string(
-            "webacl_name"
-        )
+        self.waf_webacl_name = create_waf_web_acl_custom_resource.get_att_string("webacl_name")
         waf_webacl_id = create_waf_web_acl_custom_resource.get_att_string("webacl_id")
-        waf_webacl_locktoken = create_waf_web_acl_custom_resource.get_att_string(
-            "webacl_locktoken"
-        )
+        waf_webacl_locktoken = create_waf_web_acl_custom_resource.get_att_string("webacl_locktoken")
 
         # Define the single ALB origin
         origin = cloudfront_origins.LoadBalancerV2Origin(
             prebid_alb,
             protocol_policy=cloudfront.OriginProtocolPolicy.HTTP_ONLY,
-            custom_headers={globals.X_SECRET_HEADER_NAME: self.x_header_secret_value},
+            custom_headers={stack_constants.X_SECRET_HEADER_NAME: x_header_secret_value},
         )
 
         # define the default cache behavior
@@ -250,12 +212,55 @@ class CloudFrontWafConstruct(Construct):
             response_headers_policy=response_headers_policy,
         )
 
+        # create a custom cache policy
+        cache_policy = cloudfront.CachePolicy(
+            self,
+            "CustomCachePolicy",
+            cache_policy_name=f"{Aws.STACK_NAME}CachePolicy-{Aws.REGION}",
+            comment="Cache policy for /cache* paths with uuid query string and origin header",
+            query_string_behavior=cloudfront.CacheQueryStringBehavior.allow_list("uuid"),
+            enable_accept_encoding_gzip=True,
+            enable_accept_encoding_brotli=True
+        )
+
+        # Create a 30-second cache policy for /cache/health
+        health_cache_policy = cloudfront.CachePolicy(
+            self,
+            "HealthCachePolicy",
+            cache_policy_name=f"{Aws.STACK_NAME}HealthCachePolicy-{Aws.REGION}",
+            comment="No cache policy for /cache/health path",
+            default_ttl=Duration.seconds(30),
+            min_ttl=Duration.seconds(30),
+            max_ttl=Duration.seconds(30)
+        )
+
+        # Define the custom behavior for /cache* paths
+        cache_behavior = cloudfront.BehaviorOptions(
+            origin=origin,
+            allowed_methods=cloudfront.AllowedMethods.ALLOW_GET_HEAD,
+            cache_policy=cache_policy,
+            response_headers_policy=response_headers_policy,
+            origin_request_policy=cloudfront.OriginRequestPolicy.ALL_VIEWER,
+        )
+
+        health_cache_behavior = cloudfront.BehaviorOptions(
+            origin=origin,
+            allowed_methods=cloudfront.AllowedMethods.ALLOW_GET_HEAD,
+            cache_policy=health_cache_policy,
+            response_headers_policy=response_headers_policy,
+            origin_request_policy=cloudfront.OriginRequestPolicy.ALL_VIEWER,
+        )
+
         # create the cloudfront distribution
         self.prebid_cloudfront_distribution = cloudfront.Distribution(
             self,
             "PrebidCloudFrontDist",
-            comment="Prebid Server Deployment on AWS",
+            comment="Guidance for Deploying a Prebid Server on AWS",
             default_behavior=default_behavior,
+            additional_behaviors={
+                "/cache/health": health_cache_behavior,
+                "/cache*": cache_behavior  # path pattern is specified here
+            },
             web_acl_id=waf_webacl_arn,
             enable_logging=True,
             log_bucket=cloudfront_access_logs_bucket,
@@ -265,7 +270,6 @@ class CloudFrontWafConstruct(Construct):
         # provides guidance for using custom domains and certificates.
         self.prebid_cloudfront_distribution.node.find_child(id='Resource').add_metadata("guard", {
             'SuppressedRules': ['CLOUDFRONT_MINIMUM_PROTOCOL_VERSION_RULE']})
-
 
         # Custom resource for deleting Waf Web Acl
         waf_web_acl_function_cloudfront_policy = iam.Policy(
@@ -303,7 +307,7 @@ class CloudFrontWafConstruct(Construct):
         del_waf_web_acl_function = SolutionsPythonFunction(
             self,
             "DelWafWebAclFunction",
-            globals.CUSTOM_RESOURCES_PATH
+            stack_constants.CUSTOM_RESOURCES_PATH
             / "waf_webacl_lambda"
             / "delete_waf_webacl.py",
             "event_handler",
@@ -316,9 +320,9 @@ class CloudFrontWafConstruct(Construct):
                 PowertoolsLayer.get_or_create(self),
                 SolutionsLayer.get_or_create(self),
             ],
-            environment = {"SOLUTION_ID": self.node.try_get_context("SOLUTION_ID"),
-                           "SOLUTION_VERSION": self.node.try_get_context("SOLUTION_VERSION"),
-                           }
+            environment={"SOLUTION_ID": self.node.try_get_context("SOLUTION_ID"),
+                         "SOLUTION_VERSION": self.node.try_get_context("SOLUTION_VERSION"),
+                         }
         )
 
         del_waf_web_acl_function.node.add_dependency(waf_web_acl_function_waf_policy)

@@ -82,3 +82,4 @@ source/infrastructure/custom_resources/prebid_configs_lambda/stored_accounts
 source/infrastructure/custom_resources/prebid_configs_lambda/stored_requests
 source/infrastructure/custom_resources/prebid_configs_lambda/stored_responses
 source/infrastructure/custom_resources/prebid_configs_lambda/stored_impressions
+source/infrastructure/custom_resources/docker_configs_bucket_lambda/*

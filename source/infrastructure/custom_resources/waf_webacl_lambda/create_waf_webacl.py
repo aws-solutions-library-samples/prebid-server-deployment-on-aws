@@ -28,9 +28,11 @@ def event_handler(event, context):
     helper(event, context)
 
 
-def get_4char_uuid():
-    unique_id = str(uuid.uuid4())
-    return unique_id[:4]
+def get_4char_uuid() -> str:
+    """
+    This function is responsible for generating a 4 character UUID
+    """
+    return str(uuid.uuid4())[:4]
 
 
 @helper.create
@@ -43,17 +45,68 @@ def on_create(event, _) -> None:
         "region_name": "us-east-1",
         "user_agent_extra": f"AwsSolution/{SOLUTION_ID}/{SOLUTION_VERSION}"
     }
+
     wafv2_client = boto3.client("wafv2", config=config.Config(**boto_config))
+
     response = wafv2_client.create_web_acl(
         Name=f"PrebidWaf-{event['StackId'].rsplit('/')[-1]}-{get_4char_uuid()}",
         Scope="CLOUDFRONT",
         DefaultAction={"Allow": {}},
         Description="Creating Web ACL for Cloudfront applying AWS managed rule sets",
         Rules=[
+            # Allow specific POST operation to /cache endpoint
+            {
+                "Name": "AllowPostToCache",
+                "Priority": 1,
+                "Statement": {
+                    "AndStatement": {
+                        "Statements": [
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "/cache",
+                                    "FieldToMatch": {
+                                        "UriPath": {}
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 1,
+                                            "Type": "NONE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "EXACTLY"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "POST",
+                                    "FieldToMatch": {
+                                        "Method": {}
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 1,
+                                            "Type": "NONE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "EXACTLY"
+                                }
+                            }
+                        ]
+                    }
+                },
+                "Action": {
+                    "Allow": {}
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": True,
+                    "CloudWatchMetricsEnabled": True,
+                    "MetricName": "AllowPostToCache"
+                }
+            },
             {
                 "Name": "AWS-AWSManagedRulesKnownBadInputsRuleSet",
                 "OverrideAction": {"None": {}},
-                "Priority": 1,
+                "Priority": 2,
                 "Statement": {
                     "ManagedRuleGroupStatement": {
                         "Name": "AWSManagedRulesKnownBadInputsRuleSet",
@@ -69,7 +122,7 @@ def on_create(event, _) -> None:
             {
                 "Name": "AWS-AWSManagedRulesCommonRuleSet",
                 "OverrideAction": {"None": {}},
-                "Priority": 2,
+                "Priority": 3,
                 "Statement": {
                     "ManagedRuleGroupStatement": {
                         "Name": "AWSManagedRulesCommonRuleSet",
@@ -85,7 +138,7 @@ def on_create(event, _) -> None:
             {
                 "Name": "AWS-AWSManagedRulesAnonymousIpList",
                 "OverrideAction": {"None": {}},
-                "Priority": 3,
+                "Priority": 4,
                 "Statement": {
                     "ManagedRuleGroupStatement": {
                         "Name": "AWSManagedRulesAnonymousIpList",
@@ -101,7 +154,7 @@ def on_create(event, _) -> None:
             {
                 "Name": "AWS-AWSManagedRulesAmazonIpReputationList",
                 "OverrideAction": {"None": {}},
-                "Priority": 4,
+                "Priority": 5,
                 "Statement": {
                     "ManagedRuleGroupStatement": {
                         "Name": "AWSManagedRulesAmazonIpReputationList",
@@ -117,7 +170,7 @@ def on_create(event, _) -> None:
             {
                 "Name": "AWS-AWSManagedRulesAdminProtectionRuleSet",
                 "OverrideAction": {"None": {}},
-                "Priority": 5,
+                "Priority": 6,
                 "Statement": {
                     "ManagedRuleGroupStatement": {
                         "Name": "AWSManagedRulesAdminProtectionRuleSet",
@@ -133,7 +186,7 @@ def on_create(event, _) -> None:
             {
                 "Name": "AWS-AWSManagedRulesSQLiRuleSet",
                 "OverrideAction": {"None": {}},
-                "Priority": 6,
+                "Priority": 7,
                 "Statement": {
                     "ManagedRuleGroupStatement": {
                         "Name": "AWSManagedRulesSQLiRuleSet",

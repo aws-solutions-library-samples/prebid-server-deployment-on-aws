@@ -6,7 +6,7 @@ from aws_cdk import aws_ec2 as ec2
 from aws_cdk import aws_iam as iam
 from constructs import Construct
 
-import prebid_server.stack_constants as globals
+import prebid_server.stack_constants as stack_constants
 
 S3_GET_OBJECT = "s3:GetObject"
 
@@ -17,7 +17,8 @@ class VpcConstruct(Construct):
             scope,
             id,
             artifacts_bucket,
-            docker_configs_manager_bucket
+            docker_configs_manager_bucket,
+            stored_requests_bucket
     ) -> None:
         """
         This construct creates VPC resources.
@@ -28,19 +29,19 @@ class VpcConstruct(Construct):
         self.prebid_vpc = ec2.Vpc(
             self,
             "PrebidVpc",
-            ip_addresses=ec2.IpAddresses.cidr(globals.VPC_CIDR),
-            max_azs=globals.MAX_AZS,
-            nat_gateways=globals.NAT_GATEWAYS,
+            ip_addresses=ec2.IpAddresses.cidr(stack_constants.VPC_CIDR),
+            max_azs=stack_constants.MAX_AZS,
+            nat_gateways=stack_constants.NAT_GATEWAYS,
             subnet_configuration=[
                 ec2.SubnetConfiguration(
                     subnet_type=ec2.SubnetType.PUBLIC,
-                    name=globals.PUB_SUBNET_NAME,
-                    cidr_mask=globals.CIDR_MASK,
+                    name=stack_constants.PUB_SUBNET_NAME,
+                    cidr_mask=stack_constants.CIDR_MASK,
                 ),
                 ec2.SubnetConfiguration(
                     subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS,
-                    name=globals.PVT_SUBNET_NAME,
-                    cidr_mask=globals.CIDR_MASK,
+                    name=stack_constants.PVT_SUBNET_NAME,
+                    cidr_mask=stack_constants.CIDR_MASK,
                 ),
             ],
         )
@@ -50,14 +51,14 @@ class VpcConstruct(Construct):
             ec2.Subnet.from_subnet_id(self, f"TaskSubnet{i}", subnet_id)
             for (i, subnet_id) in enumerate(
                 self.prebid_vpc.select_subnets(
-                    subnet_group_name=globals.PVT_SUBNET_NAME
+                    subnet_group_name=stack_constants.PVT_SUBNET_NAME
                 ).subnet_ids
             )
         ]
 
         # Add cfn_guard suppression to allow public IP on public subnets
         subnets = self.prebid_vpc.select_subnets(
-            subnet_group_name=globals.PUB_SUBNET_NAME
+            subnet_group_name=stack_constants.PUB_SUBNET_NAME
         ).subnets
         for subnet in subnets:
             subnet.node.default_child.cfn_options.metadata = {
@@ -87,22 +88,24 @@ class VpcConstruct(Construct):
                     f"{artifacts_bucket.bucket_arn}/*",
                 ],
                 conditions={
-                    "StringEquals": {globals.RESOURCE_NAMESPACE: Aws.ACCOUNT_ID}
+                    "StringEquals": {stack_constants.RESOURCE_NAMESPACE: Aws.ACCOUNT_ID}
                 },
             )
         )
 
-        # Allow access to docker configs bucket
+        # Allow access to docker configs bucket and application settings bucket
         prebid_s3_endpoint.add_to_policy(
             iam.PolicyStatement(
                 principals=[iam.AnyPrincipal()],  # NOSONAR - required for operation
                 actions=[S3_GET_OBJECT, "s3:ListBucket"],
                 resources=[
                     f"{docker_configs_manager_bucket.bucket_arn}/*",
-                    docker_configs_manager_bucket.bucket_arn
+                    docker_configs_manager_bucket.bucket_arn,
+                    f"{stored_requests_bucket.bucket_arn}/*",
+                    stored_requests_bucket.bucket_arn
                 ],
                 conditions={
-                    "StringEquals": {globals.RESOURCE_NAMESPACE: Aws.ACCOUNT_ID}
+                    "StringEquals": {stack_constants.RESOURCE_NAMESPACE: Aws.ACCOUNT_ID}
                 },
             )
         )

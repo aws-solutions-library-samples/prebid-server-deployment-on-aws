@@ -43,6 +43,8 @@ class FakeImportClass(FakeClass):
             "DATABASE_NAME": DATABASE_NAME,
             "ATHENA_QUERY_BUCKET": "athena-bucket",
             "AWS_REGION": "us-east-1",
+            "METRICS_NAMESPACE": "solution-metrics-namespace",
+            "RESOURCE_PREFIX": "stack-name",
             "object_keys": json.dumps({"obj_key": "obj-val"})
         }
     

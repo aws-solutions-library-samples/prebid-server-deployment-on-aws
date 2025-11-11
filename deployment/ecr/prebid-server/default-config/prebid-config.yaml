@@ -1,4 +1,14 @@
 status-response: "ok"
+server:
+  # Do not remove or disable the following server options for http, ssl, and jks.
+  # These values are required because the application load balancer used in
+  # Prebid-Server-On-AWS routes incoming requests over SSL on port 8443.
+  http:
+    enabled: true
+    port: 8443
+  ssl: true
+  jks-path: ${SSL_KEYSTORE_PATH}
+  jks-password: ${SSL_KEYSTORE_PASS}
 adapters:
   appnexus:
     enabled: true
@@ -17,18 +27,30 @@ metrics:
     interval: 30
 cache:
   scheme: http
-  host: localhost
+  host: ${CACHE_HOST}
   path: /cache
   query: uuid=
 settings:
   enforce-valid-account: false
   generate-storedrequest-bidrequest-id: true
-  filesystem:
-    settings-filename: sample/configs/sample-app-settings.yaml
-    stored-requests-dir: sample
-    stored-imps-dir: sample
-    stored-responses-dir: sample
-    categories-dir:
+  s3:
+    # These values are loaded from environment variables in the ECS task,
+    # as indicated below:
+    # access-key-id: <-- AWS_CONTAINER_CREDENTIALS_RELATIVE_URI
+    # secret-access-key: <-- AWS_CONTAINER_CREDENTIALS_RELATIVE_URI
+    # endpoint: <-- SETTINGS_S3_ENDPOINT
+    # bucket: <-- SETTINGS_S3_BUCKET
+    # region: <-- SETTINGS_S3_REGION
+    accounts-dir: stored_accounts
+    stored-imps-dir: stored_impressions
+    stored-requests-dir: stored_requests
+    stored-responses-dir: stored_responses
+  in-memory-cache:
+    cache-size: 10000
+    ttl-seconds: 1200 # 20 minutes
+    s3-update:
+      refresh-rate: 900000 # Refresh every 15 minutes
+      timeout: 5000
 gdpr:
   default-value: 1
   vendorlist:
@@ -42,3 +64,8 @@ admin-endpoints:
     path: /logging/changelevel
     on-application-port: true
     protected: false
+analytics:
+  global:
+    adapters: "psdoaAnalytics"
+  psdoa:
+    enabled: false

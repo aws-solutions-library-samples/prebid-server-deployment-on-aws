@@ -15,8 +15,6 @@ url = f"https://{CLOUDFRONT_ENDPOINT}/openrtb2/auction"
 
 
 
-@pytest.mark.repeat(5)
-@pytest.mark.reason("To validate etl metrics collection over multiple test requests")
 @pytest.mark.run(order=1)
 def test_auction_request():
     random_id = uuid.uuid4().hex
@@ -110,6 +108,7 @@ def test_auction_request():
         assert auction_resonse.json()["seatbid"][0]["bid"][0]["crid"] == "creativeId"
         assert auction_resonse.json()["seatbid"][0]["bid"][1]["crid"] == "creativeId"
         assert auction_resonse.json()["seatbid"][0]["seat"] == "amt"
+
     else:
         logger.info(SKIP_REASON)
         logger.info("Skipping detailed test_auction_request as AMT_ADAPTER_ENABLED or AMT_BIDDING_SERVER_SIMULATOR_ENDPOINT is not set")

@@ -2,7 +2,18 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import pathlib
 import pytest
+import sys
+
+current_dir = pathlib.Path(__file__).parent.absolute()
+project_root = str(current_dir.parent)
+
+metrics_path = os.path.join(project_root, 'infrastructure', 'aws_lambda_layers', 'metrics_layer', 'python')
+datasync_path = os.path.join(project_root, 'infrastructure', 'aws_lambda_layers', 'datasync_s3_layer', 'python')
+
+sys.path.append(metrics_path)
+sys.path.append(datasync_path)
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -22,4 +33,5 @@ def handler_env():
     os.environ['STACK_NAME'] = "test_stack_name"
     os.environ['RESOURCE_PREFIX'] = "test_stack_name"
     os.environ['SEND_ANONYMIZED_DATA'] = "Yes"
+    os.environ['SOLUTION_APPLICATION_TYPE'] = "AWS-Solutions"
 

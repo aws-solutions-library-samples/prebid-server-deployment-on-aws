@@ -149,19 +149,39 @@ export ATHENA_QUERY_OUTPUT=$(aws cloudformation list-stack-resources \
     --profile $profile --region $default_region \
     --output text)
 
-export CACHE_KEY=$(aws cloudformation describe-stacks --stack-name $stack_name --query "Stacks[].Outputs[?OutputKey=='XCacheKey'].OutputValue" --output text --profile $profile --region $default_region)
+export ANALYTICS_BUCKET=$(aws cloudformation list-stack-resources \
+    --stack-name $stack_name \
+    --query 'StackResourceSummaries[?starts_with(LogicalResourceId, `MetricsEtlDataSyncAnalyticsBucket`) && ResourceType==`AWS::S3::Bucket` && (ResourceStatus==`CREATE_COMPLETE` || ResourceStatus==`UPDATE_COMPLETE`)].PhysicalResourceId' \
+    --profile $profile --region $default_region \
+    --output text)
+
+export METRICS_BUCKET=$(aws cloudformation list-stack-resources \
+    --stack-name $stack_name \
+    --query 'StackResourceSummaries[?starts_with(LogicalResourceId, `MetricsEtlDataSyncMetricsBucket`) && ResourceType==`AWS::S3::Bucket` && (ResourceStatus==`CREATE_COMPLETE` || ResourceStatus==`UPDATE_COMPLETE`)].PhysicalResourceId' \
+    --profile $profile --region $default_region \
+    --output text)
 
 # This will be used to test histogram metrics if load test is setup for the stack
-TASK_DEF=$(aws cloudformation list-stack-resources \
+TASK_DEF_FAMILY=$(aws cloudformation list-stack-resources \
     --stack-name $stack_name \
     --query 'StackResourceSummaries[?starts_with(LogicalResourceId, `CloudFrontEntryDeploymentECSTaskPrebidTaskDef`) && ResourceType==`AWS::ECS::TaskDefinition` && (ResourceStatus==`CREATE_COMPLETE` || ResourceStatus==`UPDATE_COMPLETE`)].PhysicalResourceId' \
     --profile $profile --region $default_region \
-    --output text)
+    --output text | awk -F'/' '{print $NF}' | cut -d':' -f1)
+
+# Get latest task definition ARN, updated by NW post deploy script.
+LATEST_TASK_DEF=$(aws ecs list-task-definitions \
+    --family-prefix $TASK_DEF_FAMILY \
+    --sort DESC \
+    --max-items 1 \
+    --profile $profile --region $default_region \
+    --output json | jq -r '.taskDefinitionArns[0]')
+
+echo "Using latest task definition: $LATEST_TASK_DEF"
 
 # export any environment variable found for the container
 # AMT_BIDDING_SERVER_SIMULATOR_ENDPOINT and AMT_ADAPTER_ENABLED are required test histogram data
 eval $(aws ecs describe-task-definition \
-    --task-definition $TASK_DEF \
+    --task-definition $LATEST_TASK_DEF \
     --query 'taskDefinition.containerDefinitions[?name==`Prebid-Container`].environment[]' \
     --profile $profile --region $default_region \
     --output text | while read name value; do

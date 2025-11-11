@@ -26,8 +26,8 @@ test_environ = {
 }
 
 @patch.dict(os.environ, test_environ, clear=True)
-@patch('aws_lambda_layers.metrics_layer.python.cloudwatch_metrics.metrics.Metrics.put_metrics_count_value_1')
-@patch('aws_lambda_layers.datasync_s3_layer.python.datasync_reports.reports.get_transferred_object_keys')
+@patch('cloudwatch_metrics.metrics.Metrics.put_metrics_count_value_1')
+@patch('datasync_reports.reports.get_transferred_object_keys')
 @patch('boto3.client')
 def test_event_handler(
     mock_boto3, 
@@ -50,6 +50,7 @@ def test_event_handler(
             "--object_keys":  json.dumps(["key1", "key2"])
         }
     )
+    mock_metrics.assert_called_with(metric_name="StartGlueJob")
 
     # test skipping glue job when no object keys returned
     mock_boto3.reset_mock()

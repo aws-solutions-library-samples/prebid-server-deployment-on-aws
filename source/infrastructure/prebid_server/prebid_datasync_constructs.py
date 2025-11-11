@@ -4,7 +4,7 @@
 import os
 from pathlib import Path
 
-from aws_cdk import Aws, Duration, CustomResource, RemovalPolicy
+from aws_cdk import Aws, Duration, CustomResource
 from aws_cdk import (
     aws_ec2 as ec2,
     aws_iam as iam,
@@ -20,14 +20,14 @@ from aws_cdk.aws_lambda import LayerVersion, Code, Runtime
 from constructs import Construct
 
 from aws_lambda_layers.aws_solutions.layer import SolutionsLayer
-import prebid_server.stack_constants as globals
+import prebid_server.stack_constants as stack_constants
 from aws_solutions.cdk.aws_lambda.python.function import SolutionsPythonFunction
 from aws_solutions.cdk.aws_lambda.layers.aws_lambda_powertools import PowertoolsLayer
 from .prebid_glue_constructs import S3Location
 
 DATASYNC_SERVICE_PRINCIPAL = iam.ServicePrincipal("datasync.amazonaws.com")
 S3_READ_ACTIONS = ["s3:GetObject", "s3:ListBucket"]
-ACCOUNT_ID_CONDITION = {"StringEquals": {globals.RESOURCE_NAMESPACE: [Aws.ACCOUNT_ID]}}
+ACCOUNT_ID_CONDITION = {"StringEquals": {stack_constants.RESOURCE_NAMESPACE: [Aws.ACCOUNT_ID]}}
 PUT_OBJECT_ACTION = "s3:PutObject"
 
 # This policy is required to deploy a VPC Lambda
@@ -39,7 +39,7 @@ VPC_NW_INTERFACE_POLICY_STATEMENT = iam.PolicyStatement(
         "ec2:DeleteNetworkInterface",
     ],
     resources=["*"],  # NOSONAR
-    conditions={"StringEquals": {globals.RESOURCE_NAMESPACE: [Aws.ACCOUNT_ID]}},
+    conditions={"StringEquals": {stack_constants.RESOURCE_NAMESPACE: [Aws.ACCOUNT_ID]}},
 )
 
 
@@ -93,15 +93,15 @@ class EfsLocation(Construct):
             self, "SecurityGroup", vpc=self.prebid_vpc, allow_all_outbound=False
         )
         datasync_efs_sec_group.connections.allow_from(
-            self.efs_filesystem, ec2.Port.tcp(globals.EFS_PORT)
+            self.efs_filesystem, ec2.Port.tcp(stack_constants.EFS_PORT)
         )
         datasync_efs_sec_group.connections.allow_to(
-            self.efs_filesystem, ec2.Port.tcp(globals.EFS_PORT)
+            self.efs_filesystem, ec2.Port.tcp(stack_constants.EFS_PORT)
         )
 
         # create DataSync EFS location
         subnet_id = self.prebid_vpc.select_subnets(
-            subnet_group_name=globals.PVT_SUBNET_NAME
+            subnet_group_name=stack_constants.PVT_SUBNET_NAME
         ).subnet_ids[0]
 
         datasync_efs_location = datasync.CfnLocationEFS(
@@ -135,6 +135,7 @@ class EfsCleanup(Construct):
             report_bucket: s3.Bucket,
             datasync_tasks: dict[str, datasync.CfnTask],
             fargate_cluster_arn: str,
+            operational_metrics_layer: LayerVersion,
     ):
         super().__init__(scope, id)
 
@@ -144,6 +145,7 @@ class EfsCleanup(Construct):
         self.report_bucket = report_bucket
         self.datasync_tasks = datasync_tasks
         self.fargate_cluster_arn = fargate_cluster_arn
+        self.metrics_layer = operational_metrics_layer
 
         self._resource_prefix = Aws.STACK_NAME
         self._create_lamda_layer()
@@ -158,17 +160,6 @@ class EfsCleanup(Construct):
 
     def _create_lamda_layer(self):
         self.powertools_layer = PowertoolsLayer.get_or_create(self)
-        self.metrics_layer = LayerVersion(
-            self,
-            "metrics-layer",
-            code=Code.from_asset(
-                path=os.path.join(
-                    f"{Path(__file__).parents[1]}", "aws_lambda_layers/metrics_layer/"
-                )
-            ),
-            layer_version_name=f"{self._resource_prefix}-metrics-layer",
-            compatible_runtimes=[Runtime.PYTHON_3_11],
-        )
 
     def _create_security_group(self):
         """
@@ -176,7 +167,7 @@ class EfsCleanup(Construct):
         """
         lambda_security_group = ec2.SecurityGroup(self, "SecurityGroup", vpc=self.vpc, allow_all_outbound=True) # NOSONAR
         lambda_security_group.connections.allow_from(
-            self.efs_filesystem, ec2.Port.tcp(globals.EFS_PORT)
+            self.efs_filesystem, ec2.Port.tcp(stack_constants.EFS_PORT)
         )
         # Suppress cfn_guard warning about open egress.
         # Justification:
@@ -201,7 +192,7 @@ class EfsCleanup(Construct):
             vpc=self.vpc,
             filesystem=aws_lambda.FileSystem.from_efs_access_point(
                 ap=self.efs_ap,
-                mount_path=globals.EFS_MOUNT_PATH,
+                mount_path=stack_constants.EFS_MOUNT_PATH,
             ),
             runtime=aws_lambda.Runtime.PYTHON_3_11,
             description="Lambda function for archiving logs on container stopping",
@@ -216,9 +207,10 @@ class EfsCleanup(Construct):
             environment={
                 "SOLUTION_ID": self.node.try_get_context("SOLUTION_ID"),
                 "SOLUTION_VERSION": self.node.try_get_context("SOLUTION_VERSION"),
-                "EFS_MOUNT_PATH": globals.EFS_MOUNT_PATH,
-                "EFS_METRICS": globals.EFS_METRICS,
-                "EFS_LOGS": globals.EFS_LOGS,
+                "EFS_MOUNT_PATH": stack_constants.EFS_MOUNT_PATH,
+                "EFS_METRICS": stack_constants.EFS_METRICS,
+                "EFS_ANALYTICS": stack_constants.EFS_ANALYTICS,
+                "EFS_LOGS": stack_constants.EFS_LOGS,
                 "RESOURCE_PREFIX": Aws.STACK_NAME,
                 "METRICS_NAMESPACE": self.node.try_get_context("METRICS_NAMESPACE"),
             },
@@ -282,18 +274,20 @@ class EfsCleanup(Construct):
             environment={
                 "SOLUTION_ID": self.node.try_get_context("SOLUTION_ID"),
                 "SOLUTION_VERSION": self.node.try_get_context("SOLUTION_VERSION"),
-                "EFS_MOUNT_PATH": globals.EFS_MOUNT_PATH,
+                "EFS_MOUNT_PATH": stack_constants.EFS_MOUNT_PATH,
                 "METRICS_TASK_ARN": self.datasync_tasks["metrics"].attr_task_arn,
+                "ANALYTICS_TASK_ARN": self.datasync_tasks["analytics"].attr_task_arn,
                 "RESOURCE_PREFIX": Aws.STACK_NAME,
                 "METRICS_NAMESPACE": self.node.try_get_context("METRICS_NAMESPACE"),
                 "DATASYNC_REPORT_BUCKET": self.report_bucket.bucket_name,
                 "AWS_ACCOUNT_ID": Aws.ACCOUNT_ID,
-                "EFS_METRICS": globals.EFS_METRICS,
-                "EFS_LOGS": globals.EFS_LOGS,
+                "EFS_METRICS": stack_constants.EFS_METRICS,
+                "EFS_ANALYTICS": stack_constants.EFS_ANALYTICS,
+                "EFS_LOGS": stack_constants.EFS_LOGS,
             },
             filesystem=aws_lambda.FileSystem.from_efs_access_point(
                 ap=self.efs_ap,
-                mount_path=globals.EFS_MOUNT_PATH,
+                mount_path=stack_constants.EFS_MOUNT_PATH,
             ),
         )
         # Suppress the cfn_guard rule indicating that this function should have reserved concurrency.
@@ -435,7 +429,7 @@ class EfsCleanup(Construct):
                             resources=["*"],  # NOSONAR
                             conditions={
                                 "StringEquals": {
-                                    globals.RESOURCE_NAMESPACE: [Aws.ACCOUNT_ID]
+                                    stack_constants.RESOURCE_NAMESPACE: [Aws.ACCOUNT_ID]
                                 }
                             },
                         ),
@@ -450,7 +444,7 @@ class EfsCleanup(Construct):
         self.del_vpc_eni_function = SolutionsPythonFunction(
             self,
             "VpcEniFunction",
-            globals.CUSTOM_RESOURCES_PATH / "vpc_eni_lambda" / "delete_lambda_eni.py",
+            stack_constants.CUSTOM_RESOURCES_PATH / "vpc_eni_lambda" / "delete_lambda_eni.py",
             "event_handler",
             runtime=aws_lambda.Runtime.PYTHON_3_11,
             role=custom_resource_role,
@@ -556,6 +550,7 @@ class DataSyncTask(Construct):
             log_group: aws_logs.LogGroup,
             glue_etl_job_trigger: aws_lambda.Function,
             glue_etl_s3_location: S3Location,
+            transfer_mode: str
     ):
         super().__init__(scope, id)
 
@@ -593,7 +588,7 @@ class DataSyncTask(Construct):
                 schedule_expression=self.task_schedule
             ),
             options=datasync.CfnTask.OptionsProperty(
-                transfer_mode="CHANGED",
+                transfer_mode=transfer_mode,
                 verify_mode="ONLY_FILES_TRANSFERRED",
                 log_level="BASIC",
             ),
@@ -629,7 +624,8 @@ class DataSyncTask(Construct):
             [{"wildcard": f"{self.task.attr_task_arn}/execution/*"}],
         )
         rule.node.add_dependency(self.task)
-        rule.add_target(targets.LambdaFunction(self.glue_etl_job_trigger))
+        if self.glue_etl_job_trigger:
+            rule.add_target(targets.LambdaFunction(self.glue_etl_job_trigger))
 
 
 class DataSyncMonitoring(Construct):

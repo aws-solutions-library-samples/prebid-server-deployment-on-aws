@@ -22,9 +22,9 @@ def test_s3_location():
     reload_module("prebid_server.prebid_glue_constructs")
     from prebid_server.prebid_glue_constructs import S3Location
 
-    S3Location.__init__(self=mock_def, scope=FakeClass(), id=str(uuid.uuid4()), s3_bucket=mock_def)
-    s3_location = S3Location._create_s3_location(self=mock_def)
-    assert len(s3_location.method_calls) == 3
+    S3Location.__init__(self=mock_def, scope=FakeClass(), s3_location_id=str(uuid.uuid4()), s3_bucket=mock_def)
+    s3_location = S3Location._create_s3_location(self=mock_def, s3_location_id=str(uuid.uuid4()))
+    assert len(s3_location.method_calls) == 2
 
 
 @mocked_common_services(

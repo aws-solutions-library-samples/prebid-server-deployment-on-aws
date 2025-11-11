@@ -5,6 +5,10 @@
 
     <!-- Get the ECS container id -->
     <property name="CONTAINER_ID" value="${containerId}" />
+    <property name="PREBID_CONFIGS_DIR" value="${PREBID_CONFIGS_DIR:-CONFIG_DIR_IS_UNDEFINED}" />
+
+    <!-- Include prebid analytics configurations -->
+    <include optional="false" file="${PREBID_CONFIGS_DIR}/prebid-analytics-logging.xml"/>
 
     <!-- Define the stdout appender for INFO and lower levels -->
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
@@ -38,12 +42,12 @@
     </appender>
 
     <!-- Logger for metrics with no additivity -->
-    <logger name="METRICS" additivity="false">
+    <logger name="METRICS" additivity="false" level="INFO">
         <appender-ref ref="METRICS_ASYNC" />
     </logger>
 
     <!-- Root logger to output logs to stdout and stderr -->
-    <root level="info">
+    <root level="INFO">
         <appender-ref ref="LOG_ASYNC" /> <!-- Sends logs to stdout for info and below -->
     </root>
 </configuration>

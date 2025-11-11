@@ -23,7 +23,7 @@ Available options:
 -h, --help        Print this help and exit (optional)
 --in-venv         Run test in an existing virtual environment [--in-venv 1] (optional)
 --extras          Append more commands to pytest run (optional)
---test-file-name  Run individual test file (optional) e.g --test-file-name test_bad_requests.py
+--test-file-name  Run individual test file (optional) e.g --test-file-name prebid_server/test_prebid_artifacts_constructs.py
 
 EOF
   exit 1

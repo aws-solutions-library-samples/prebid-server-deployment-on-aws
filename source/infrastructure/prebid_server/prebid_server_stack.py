@@ -1,17 +1,29 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-
 import os
 from pathlib import Path
 
-from aws_cdk import CfnCondition, Fn
-from aws_cdk import Aws, CfnParameter
-from aws_cdk import aws_ecs as ecs
+from aws_cdk import (
+    Aws,
+    CfnCondition,
+    CfnOutput,
+    CustomResource,
+    Duration,
+    Fn,
+    RemovalPolicy,
+    aws_ecs as ecs,
+    aws_lambda as awslambda,
+    aws_s3 as s3
+)
 from aws_cdk.aws_lambda import LayerVersion, Code, Runtime
+from aws_cdk import aws_iam as iam
 from constructs import Construct
-
 from aws_solutions.cdk.stack import SolutionStack
+from aws_lambda_layers.aws_solutions.layer import SolutionsLayer
+from aws_solutions.cdk.aws_lambda.layers.aws_lambda_powertools import PowertoolsLayer
+from aws_solutions.cdk.aws_lambda.python.function import SolutionsPythonFunction
+import prebid_server.stack_constants as stack_constants
 
 from .prebid_datasync_constructs import DataSyncMonitoring
 from .prebid_artifacts_constructs import ArtifactsManager
@@ -22,57 +34,49 @@ from .vpc_construct import VpcConstruct
 from .container_image_construct import ContainerImageConstruct
 from .prebid_glue_constructs import GlueEtl
 from .cloudtrail_construct import CloudTrailConstruct
+from .cache_construct import CacheConstruct
+from .stack_cfn_parameters import StackParams
 
 
 class PrebidServerStack(SolutionStack):
     name = "prebid-server-deployment-on-aws"
-    description = "Prebid Server Deployment on AWS"
+    description = "Guidance for Deploying a Prebid Server on AWS"
     template_filename = "prebid-server-deployment-on-aws.template"
 
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
         self.synthesizer.bind(self)
 
-        deploy_cloudfront_and_waf_param = CfnParameter(
-            self,
-            id="InstallCloudFrontAndWAF",
-            description="Yes - Use the CloudFront and Web Application Firewall to deliver your content. \n No - Skip CloudFront and WAF deployment and use your own content delivery network instead",
-            type="String",
-            allowed_values=["Yes", "No"],
-            default="Yes"
-        )
+        stack_params = StackParams(self)
 
-        ssl_certificate_param = CfnParameter(
-            self,
-            id="SSLCertificateARN",
-            description="The ARN of an SSL certificate in AWS Certificate Manager associated with a domain name. This field is only required if InstallCloudFrontAndWAF is set to \"No\".",
-            type="String",
-            default=""
-        )
-        self.solutions_template_options.add_parameter(deploy_cloudfront_and_waf_param, label="",
-                                                      group="Content Delivery Network (CDN) Settings")
-        self.solutions_template_options.add_parameter(ssl_certificate_param, label="",
-                                                      group="Content Delivery Network (CDN) Settings")
+         # Validate parameters
+        stack_params.validate_parameters()
 
         deploy_cloudfront_and_waf_condition = CfnCondition(
             self,
             id="DeployCloudFrontWafCondition",
-            expression=Fn.condition_equals(deploy_cloudfront_and_waf_param.value_as_string, "Yes")
+            expression=Fn.condition_equals(stack_params.deploy_cloudfront_and_waf_param.value_as_string, "Yes")
         )
 
         deploy_alb_https_condition = CfnCondition(
             self,
             id="DeployALBHttpsCondition",
-            expression=Fn.condition_equals(deploy_cloudfront_and_waf_param.value_as_string, "No")
+            expression=Fn.condition_equals(stack_params.deploy_cloudfront_and_waf_param.value_as_string, "No")
         )
 
-        container_image_construct = ContainerImageConstruct(self, "ContainerImage", self.solutions_template_options)
+        # Create bucket for storing prebid application settings
+        stored_requests_bucket = self.create_stored_requests_bucket()
+
+        container_image_construct = ContainerImageConstruct(self, "ContainerImage", self.solutions_template_options,
+                                                            stored_requests_bucket)
 
         # Create artifacts resources for storing solution files
         artifacts_construct = ArtifactsManager(self, "Artifacts")
 
-        vpc_construct = VpcConstruct(self, "VPC", artifacts_construct.bucket,
-                                     container_image_construct.docker_configs_manager_bucket)
+        vpc_construct = VpcConstruct(self, "VPC",
+                                     artifacts_construct.artifacts_bucket,
+                                     container_image_construct.docker_configs_manager_bucket,
+                                     stored_requests_bucket)
 
         # Create ECS Cluster
         prebid_cluster = ecs.Cluster(
@@ -105,7 +109,7 @@ class PrebidServerStack(SolutionStack):
         )
 
         # Operational Metrics
-        OperationalMetricsConstruct(self, "operational-metrics")
+        op_metrics_construct = OperationalMetricsConstruct(self, "operational-metrics")
 
         # Create Glue resources for ETL of metrics
         glue_etl = GlueEtl(
@@ -113,15 +117,75 @@ class PrebidServerStack(SolutionStack):
             "MetricsEtl",
             artifacts_construct=artifacts_construct,
             script_file_name="metrics_glue_script.py",
+            operational_metrics_layer=op_metrics_construct.operational_metrics_layer
         )
         glue_etl.lambda_function.add_layers(datasync_s3_layer)
 
         # Cloud Trail Logging
-        cloudtrail_logging_s3_buckets = [artifacts_construct.bucket, glue_etl.source_bucket, glue_etl.output_bucket, ]
+        cloudtrail_logging_s3_buckets = [
+            artifacts_construct.artifacts_bucket,
+            glue_etl.metrics_source_bucket,
+            glue_etl.analytics_source_bucket,
+            glue_etl.output_bucket,
+        ]
         CloudTrailConstruct(
             self,
             "CloudtrailConstruct",
             s3_buckets=cloudtrail_logging_s3_buckets,
+        )
+
+        # Custom resource for Cloudfront header secret
+        header_secret_gen_function = SolutionsPythonFunction(
+            self,
+            "HeaderSecretGenFunction",
+            stack_constants.CUSTOM_RESOURCES_PATH
+            / "header_secret_lambda"
+            / "header_secret_gen.py",
+            "event_handler",
+            runtime=awslambda.Runtime.PYTHON_3_11,
+            description="Lambda function for header secret generation",
+            timeout=Duration.seconds(30),
+            memory_size=128,
+            architecture=awslambda.Architecture.ARM_64,
+            layers=[
+                PowertoolsLayer.get_or_create(self),
+                SolutionsLayer.get_or_create(self),
+            ],
+            environment={
+                "SOLUTION_ID": self.node.try_get_context("SOLUTION_ID"),
+                "SOLUTION_VERSION": self.node.try_get_context("SOLUTION_VERSION"),
+            }
+        )
+        # Suppress the cfn_guard rules indicating that this function should operate within a VPC and have reserved concurrency.
+        # A VPC is not necessary for this function because it does not need to access any resources within a VPC.
+        # Reserved concurrency is not necessary because this function is invoked infrequently.
+        header_secret_gen_function.node.find_child(id='Resource').add_metadata("guard", {
+            'SuppressedRules': ['LAMBDA_INSIDE_VPC', 'LAMBDA_CONCURRENCY_CHECK']})
+
+        header_secret_gen_custom_resource = CustomResource(
+            self,
+            "HeaderSecretGenCr",
+            service_token=header_secret_gen_function.function_arn,
+            properties={},
+        )
+        x_header_secret_value = header_secret_gen_custom_resource.get_att_string("header_secret_value")
+
+        # Create the cache construct
+        cache_construct = CacheConstruct(
+            self,
+            "CacheConstruct",
+            vpc_construct=vpc_construct, 
+            op_metrics_layer = op_metrics_construct.operational_metrics_layer
+        )
+
+        # Get the ElastiCache cluster ID from the serverless cache
+        elasticache_cluster_id = cache_construct.serverless_cache.serverless_cache_name
+
+        CfnOutput(
+            self,
+            "Header-Key",
+            value=x_header_secret_value,
+            description="Header Key",
         )
 
         # Deploy CloudFrontEntryDeployment construct when the user selects the option to use CloudFront as their content delivery network (CDN).
@@ -129,6 +193,7 @@ class PrebidServerStack(SolutionStack):
         CloudFrontEntryDeployment(
             self,
             "CloudFrontEntryDeployment",
+            stack_params,
             deploy_cloudfront_and_waf_condition,
             artifacts_construct,
             datasync_monitor,
@@ -137,6 +202,13 @@ class PrebidServerStack(SolutionStack):
             datasync_s3_layer,
             prebid_cluster,
             glue_etl,
+            cache_construct.lambda_target_external_cf,
+            cache_construct.lambda_target_internal_cf,
+            x_header_secret_value,
+            stored_requests_bucket,
+            cache_construct.cache_lambda_function.function_name,
+            elasticache_cluster_id,
+            op_metrics_construct.operational_metrics_layer
         )
 
         # Deploy this construct when the user wants to use their own CDN.
@@ -144,8 +216,8 @@ class PrebidServerStack(SolutionStack):
         ALBEntryDeployment(
             self,
             "ALBEntryDeployment",
+            stack_params,
             deploy_alb_https_condition,
-            ssl_certificate_param,
             artifacts_construct,
             datasync_monitor,
             vpc_construct,
@@ -153,4 +225,87 @@ class PrebidServerStack(SolutionStack):
             prebid_cluster,
             datasync_s3_layer,
             glue_etl,
+            cache_construct.lambda_target_external_alb,
+            cache_construct.lambda_target_internal_alb,
+            stored_requests_bucket,
+            cache_construct.cache_lambda_function.function_name,
+            elasticache_cluster_id,
+            op_metrics_construct.operational_metrics_layer
         )
+
+    def create_access_logs_bucket(self) -> s3.Bucket:
+        """
+        Create an S3 bucket for storing access logs.
+        """
+        access_logs_bucket = s3.Bucket(
+            self,
+            id="StoredRequestsAccessLogsBucket",
+            object_ownership=s3.ObjectOwnership.OBJECT_WRITER,
+            access_control=s3.BucketAccessControl.BUCKET_OWNER_FULL_CONTROL,
+            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
+            encryption=s3.BucketEncryption.S3_MANAGED,
+            removal_policy=RemovalPolicy.RETAIN,
+            versioned=True,
+            auto_delete_objects=False,
+            enforce_ssl=True,
+            lifecycle_rules=[
+                s3.LifecycleRule(
+                    id="AccessLogsLifecycle",
+                    enabled=True,
+                    expiration=Duration.days(90),
+                    transitions=[
+                        s3.Transition(
+                            storage_class=s3.StorageClass.INFREQUENT_ACCESS,
+                            transition_after=Duration.days(30)
+                        )
+                    ],
+                    noncurrent_version_expiration=Duration.days(30)
+                )
+            ]
+        )
+        
+        access_logs_bucket.add_to_resource_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                principals=[iam.ServicePrincipal("logging.s3.amazonaws.com")],
+                actions=["s3:PutObject"],
+                resources=[f"{access_logs_bucket.bucket_arn}/stored-requests-bucket-logs/*"],
+                conditions={
+                    "StringEquals": {
+                        "aws:SourceAccount": Aws.ACCOUNT_ID
+                    }
+                }
+            )
+        )
+        
+        return access_logs_bucket
+
+    def create_stored_requests_bucket(self) -> s3.Bucket:
+        """
+        Create an S3 bucket for storing prebid stored requests and stored responses.
+        Reference:
+        https://github.com/prebid/prebid-server-java/blob/master/docs/application-settings.md#setting-account-configuration-in-s3
+        """
+        access_logs_bucket = self.create_access_logs_bucket()
+
+        bucket = s3.Bucket(
+            self,
+            id="Bucket",
+            object_ownership=s3.ObjectOwnership.OBJECT_WRITER,
+            access_control=s3.BucketAccessControl.BUCKET_OWNER_FULL_CONTROL,
+            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
+            encryption=s3.BucketEncryption.S3_MANAGED,
+            removal_policy=RemovalPolicy.RETAIN,
+            versioned=True,
+            auto_delete_objects=False,
+            enforce_ssl=True,
+            server_access_logs_bucket=access_logs_bucket,
+            server_access_logs_prefix="stored-requests-bucket-logs/",
+        )
+
+        CfnOutput(self, "PrebidStoredRequestsBucket",
+                  value=f"https://{Aws.REGION}.console.aws.amazon.com/s3/home?region={Aws.REGION}&bucket={bucket.bucket_name}",
+                  description="Bucket for Prebid Server stored requests"
+                  )
+
+        return bucket

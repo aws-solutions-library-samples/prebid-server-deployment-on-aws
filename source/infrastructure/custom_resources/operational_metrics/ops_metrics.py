@@ -41,10 +41,11 @@ def create_uuid():
     """
     This function is responsible for creating the Secrets Manager uuid for anonymous metrics.
     """
-
     secrets_manager_client = get_service_client("secretsmanager")
-
-    secrets_manager_client.create_secret(Name=SECRET_NAME, SecretString=METRIC_UUID)
+    secrets_manager_client.create_secret(
+        Name=SECRET_NAME,
+        SecretString=METRIC_UUID,
+    )
 
     logger.info("Secret created successfully!")
 

@@ -85,3 +85,21 @@ Run using bucket name directly:
 This section provides the essential information for users to understand the prerequisites and basic usage of the script, while also showing more advanced options for customization.
 
 
+### S3 Settings Configuration
+
+#### Local Development Configuration
+
+When running Prebid Server locally using Docker, you should comment out the entire `s3` section if you don't need stored request functionality. This is important because of how the [Spring configuration works in Prebid Server](https://github.com/prebid/prebid-server-java/blob/b225eb2636fe63b526df8af34277b3203f31f9f6/src/main/java/org/prebid/server/spring/config/SettingsConfiguration.java#L231).
+
+```yaml
+settings:
+  enforce-valid-account: false
+  generate-storedrequest-bidrequest-id: true
+  # Comment out the entire s3 section for local development without s3 stored requests
+  # s3:
+  #   accounts-dir: accounts
+  #   stored-imps-dir: stored_imps
+  #   stored-requests-dir: stored_requests
+  #   stored-responses-dir: stored_responses
+
+

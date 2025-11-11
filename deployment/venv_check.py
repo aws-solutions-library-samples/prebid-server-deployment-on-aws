@@ -11,3 +11,4 @@ IN_VENV = (getattr(sys, "base_prefix", None) or getattr(
     sys, "real_prefix", None) or sys.prefix) != sys.prefix
 # return success (0) if in a venv
 sys.exit(IN_VENV is False)
+

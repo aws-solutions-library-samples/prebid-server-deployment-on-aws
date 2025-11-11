@@ -16,19 +16,21 @@ METRICS_TASK_ARN = "arn:aws:sync:us-west-2:9111122223333:task/task-example2"
 test_environ = {
     "EFS_MOUNT_PATH": "mnt/efs",
     "METRICS_TASK_ARN": METRICS_TASK_ARN,
+    "ANALYTICS_TASK_ARN": METRICS_TASK_ARN,
     "DATASYNC_REPORT_BUCKET": "test-report-bucket",
     "AWS_ACCOUNT_ID": "9111122223333",
     "METRICS_NAMESPACE": "test-namespace",
     "RESOURCE_PREFIX": "test-prefix",
     "EFS_METRICS" : "metrics",
+    "EFS_ANALYTICS": "analytics",
     "EFS_LOGS" : "logs",
     "SOLUTION_VERSION" : "v1.9.99",
     "SOLUTION_ID" : "SO000123",
 }
 
 @patch.dict(os.environ, test_environ, clear=True)
-@patch('aws_lambda_layers.metrics_layer.python.cloudwatch_metrics.metrics.Metrics.put_metrics_count_value_1')
-@patch('aws_lambda_layers.datasync_s3_layer.python.datasync_reports.reports.get_transferred_object_keys')
+@patch('cloudwatch_metrics.metrics.Metrics.put_metrics_count_value_1')
+@patch('datasync_reports.reports.get_transferred_object_keys')
 @patch('os.remove')
 @patch('aws_lambda_powertools.Logger.info')
 @patch('aws_lambda_powertools.Logger.error')
@@ -49,7 +51,8 @@ def test_event_handler(
         "resources": [f"{METRICS_TASK_ARN}/execution/exec-example316440271f"]
     }
     event_handler(test_event_2, None)
-    mock_info.assert_any_call("No new metrics files to delete from EFS.")
+    mock_info.assert_any_call("No new analytics files to delete from EFS.")
+    mock_metrics.assert_called_with(metric_name="DeleteEfsFiles")
 
     # test unsuccessful file deletion
     mock_get_transferred_object_keys.return_value = ["key1", "key2"]

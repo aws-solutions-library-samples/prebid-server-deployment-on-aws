@@ -7,7 +7,7 @@ from constructs import Construct
 from aws_solutions.cdk.aws_lambda.layers.aws_lambda_powertools import PowertoolsLayer
 from aws_solutions.cdk.aws_lambda.python.function import SolutionsPythonFunction
 from aws_lambda_layers.aws_solutions.layer import SolutionsLayer
-import prebid_server.stack_constants as globals
+import prebid_server.stack_constants as stack_constants
 
 
 class AlbAccessLogsConstruct(Construct):
@@ -102,7 +102,7 @@ class AlbAccessLogsConstruct(Construct):
         self.enable_access_logs_function = SolutionsPythonFunction(
             self,
             "EnableAccessLogsFunction",
-            globals.CUSTOM_RESOURCES_PATH
+            stack_constants.CUSTOM_RESOURCES_PATH
             / "enable_access_logs"
             / "enable_access_logs.py",
             "event_handler",
@@ -162,3 +162,7 @@ class AlbAccessLogsConstruct(Construct):
         self.enable_access_logs_custom_resource.node.add_dependency(
             self.alb_access_logs_bucket
         )
+
+        bucket_policy = self.alb_access_logs_bucket.node.find_child(id='Policy')
+        if bucket_policy:
+            self.enable_access_logs_custom_resource.node.add_dependency(bucket_policy)

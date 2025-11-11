@@ -11,14 +11,8 @@ import os
 import boto3
 from botocore import config
 from aws_lambda_powertools import Logger
-try:
-    from cloudwatch_metrics import metrics
-except ImportError:
-    from aws_lambda_layers.metrics_layer.python.cloudwatch_metrics import metrics
-try:
-    from datasync_reports import reports
-except ImportError:
-    from aws_lambda_layers.datasync_s3_layer.python.datasync_reports import reports
+from cloudwatch_metrics import metrics
+from datasync_reports import reports
 
 
 logger = Logger(utc=True, service="glue-trigger-lambda")

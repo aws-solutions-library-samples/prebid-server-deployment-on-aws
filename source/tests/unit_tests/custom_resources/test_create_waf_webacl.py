@@ -7,8 +7,16 @@
 #   ./run-unit-tests.sh --test-file-name custom_resources/test_create_waf_webacl.py
 ###############################################################################
 
-
+from moto import mock_aws
+import pytest
 from unittest.mock import patch
+
+
+@pytest.fixture(autouse=True)
+def mock_aws_services():
+    """Mock AWS services"""
+    with mock_aws():
+        yield
 
 
 @patch("crhelper.CfnResource")

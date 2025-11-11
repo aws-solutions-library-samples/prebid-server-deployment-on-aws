@@ -18,6 +18,7 @@ test_environ = {
     "EFS_MOUNT_PATH": "/mnt/efs",
     "AWS_ACCOUNT_ID": "9111122223333",
     "EFS_METRICS": "metrics",
+    "EFS_ANALYTICS": "analytics",
     "EFS_LOGS": "logs",
     "SOLUTION_VERSION": "v1.9.99",
     "SOLUTION_ID": "SO000123",
@@ -31,22 +32,23 @@ EVENT_DETAIL = {
 
 
 @patch.dict(os.environ, test_environ, clear=True)
-@patch('aws_lambda_layers.metrics_layer.python.cloudwatch_metrics.metrics.Metrics.put_metrics_count_value_1')
+@patch('cloudwatch_metrics.metrics.Metrics.put_metrics_count_value_1')
 @patch("prebid_server.efs_cleanup_lambda.container_stop_logs.logger")
 @patch("prebid_server.efs_cleanup_lambda.container_stop_logs.Path")
 @patch("prebid_server.efs_cleanup_lambda.container_stop_logs.compress_log_file")
 def test_event_handler(mock_compress_log_file, mock_path, mock_logger, mock_metrics):
     from prebid_server.efs_cleanup_lambda.container_stop_logs import event_handler
 
-
     mock_metrics.return_value = None
+    
     event = EVENT_DETAIL
     event_handler(event, None)
 
     mock_logger.info.assert_called_with(
         "Container run id id123456 status STOPPING")
     mock_path.assert_called_with(test_environ["EFS_MOUNT_PATH"])
-    assert mock_compress_log_file.call_count == 1
+    assert mock_compress_log_file.call_count == 2
+    mock_metrics.assert_called_once_with(metric_name="ConatinerStopLogs")
 
 
 @patch.dict(os.environ, test_environ, clear=True)

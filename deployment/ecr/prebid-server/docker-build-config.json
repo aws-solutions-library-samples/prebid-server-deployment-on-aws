@@ -5,5 +5,6 @@
   "_comment_spring_framework": "spring-framework.version=6.2.11 addresses multiple Spring Framework CVEs",
   "_comment_spring_boot": "spring.boot.version=3.4.5 addresses Spring Boot security vulnerabilities",
   "GIT_TAG_VERSION": "3.28.0",
+  "GIT_REPO_URL": "https://github.com/prebid/prebid-server-java",
   "MVN_CLI_OPTIONS": "-Dmaven.test.skip -Dnetty.version=4.2.5.Final -Dcommons-lang3.version=3.18.0 -Dspring-framework.version=6.2.11 -Dspring.boot.version=3.4.5"
 }

@@ -18,7 +18,7 @@ set -euo pipefail
 # Set variables
 PREBID_CONFIGS_DIR="prebid-configs"
 ENTRYPOINT_SCRIPT="entrypoint.sh"
-REQUIRED_CONFIG_FILES="${ENTRYPOINT_SCRIPT} prebid-config.yaml prebid-logging.xml"
+REQUIRED_CONFIG_FILES="${ENTRYPOINT_SCRIPT} prebid-config.yaml prebid-logging.xml prebid-analytics-logging.xml"
 ENTRYPOINT_DIR="../${PREBID_CONFIGS_DIR}"
 
 # Check if the S3 bucket environment variable is set

@@ -15,13 +15,20 @@ import boto3
 from unittest.mock import patch, MagicMock
 from moto import mock_aws
 
+
 @pytest.fixture
 def test_configs():
     return {
         "TEST_METRIC_UUID": str(uuid.uuid4()),
-        "SECRET_NAME": f"{os.environ['STACK_NAME']}-anonymous-metrics-uuid"
+        "SECRET_NAME": f"{os.environ['STACK_NAME']}-anonymous-metrics-uuid",
     }
 
+
+@pytest.fixture(autouse=True)
+def mock_aws_services():
+    """Mock AWS services"""
+    with mock_aws():
+        yield
 
 
 @patch("custom_resources.operational_metrics.ops_metrics.create_uuid")
@@ -50,14 +57,12 @@ def test_event_handler(helper_mock, _):
 
 
 @patch("crhelper.CfnResource")
-@mock_aws
 def test_create_uuid(_, test_configs):
     session = boto3.session.Session(region_name=os.environ["AWS_REGION"])
     client = session.client("secretsmanager")
 
     fake_uuid = MagicMock()
     fake_uuid.uuid4() == test_configs["TEST_METRIC_UUID"]
-
 
     with patch("custom_resources.operational_metrics.ops_metrics.uuid", fake_uuid) as mock_uuid:
         from custom_resources.operational_metrics.ops_metrics import create_uuid
@@ -71,7 +76,6 @@ def test_create_uuid(_, test_configs):
 
 
 @patch("crhelper.CfnResource.delete")
-@mock_aws
 def test_delete_secret(_, test_configs):
     session = boto3.session.Session(region_name=os.environ["AWS_REGION"])
     client = session.client("secretsmanager")

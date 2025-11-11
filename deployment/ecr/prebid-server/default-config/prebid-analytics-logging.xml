@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<included>
+    <!-- Analytics File Appender -->
+    <appender name="ANALYTICS_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>/mnt/efs/analytics/${CONTAINER_ID}/prebid-analytics.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>/mnt/efs/analytics/${CONTAINER_ID}/archived/prebid-analytics.%d{yyyy-MM-dd_HH}.%i.log.gz</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
+        </rollingPolicy>
+        <encoder>
+            <pattern>{"timestamp":"%d{yyyy-MM-dd'T'HH:mm:ss.SSSZ}", "level":"%p", "logger":"%logger", "thread":"%t", "message":%msg, "containerId":"${CONTAINER_ID}"}%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Async wrapper -->
+    <appender name="ANALYTICS_ASYNC" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="ANALYTICS_FILE" />
+    </appender>
+
+    <!-- PSDOAAnalyticsReporter logger for file - logs INFO to analytics file -->
+    <logger name="org.prebid.server.analytics.reporter.psdoa.PsdoaAnalyticsReporter" level="INFO" additivity="false">
+        <appender-ref ref="ANALYTICS_ASYNC" />
+    </logger>
+</included>

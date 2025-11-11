@@ -1,12 +1,12 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-from aws_cdk import RemovalPolicy, CfnOutput
+from aws_cdk import RemovalPolicy
 from aws_cdk import aws_ec2 as ec2
 from aws_cdk import aws_efs as efs
 from constructs import Construct
 
-import prebid_server.stack_constants as globals
+import prebid_server.stack_constants as stack_constants
 
 
 class EfsConstruct(Construct):
@@ -36,7 +36,7 @@ class EfsConstruct(Construct):
             security_group=efs_security_group,
             performance_mode=efs.PerformanceMode.GENERAL_PURPOSE,
             lifecycle_policy=efs.LifecyclePolicy.AFTER_7_DAYS,
-            vpc_subnets=ec2.SubnetSelection(subnet_group_name=globals.PVT_SUBNET_NAME),
+            vpc_subnets=ec2.SubnetSelection(subnet_group_name=stack_constants.PVT_SUBNET_NAME),
             removal_policy=RemovalPolicy.DESTROY,
             encrypted=True,
         )

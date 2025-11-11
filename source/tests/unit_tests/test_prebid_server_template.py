@@ -13,7 +13,7 @@ import aws_cdk as cdk
 from aws_solutions.cdk import CDKSolution
 from aws_cdk.assertions import Template, Capture, Match
 
-import prebid_server.stack_constants as globals
+import prebid_server.stack_constants as stack_constants
 
 
 @pytest.fixture(scope="module")
@@ -65,12 +65,13 @@ def test_prebid_server_template(template):
     alb4xx_error_alarm(template)
     data_sync_metrics_bucket_policy(template)
     efs_cleanup_vpc_custom_res(template)
-    solution_metrics_anonymous_data(template)
     metrics_etl_meter_table(template)
     metrics_etl_histogram_table(template)
     metrics_etl_guage_table(template)
     metrics_etl_counter_table(template)
     metrics_etl_timer_table(template)
+    access_logs_bucket(template)
+    stored_requests_bucket(template)
 
 
 def mapping_solution(template):
@@ -79,7 +80,7 @@ def mapping_solution(template):
         {
             'Data': {
                 'ID': "SO0248",
-                'Version': "v1.1.4",
+                'Version': "v1.2.0",
                 'SendAnonymizedData': 'Yes'
             }
         }
@@ -92,7 +93,7 @@ def mapping_source_code(template):
         {
             'General': {
                 'S3Bucket': "BUCKET_NAME",
-                'KeyPrefix': 'Prebid Server Deployment on AWS/v1.1.4'
+                'KeyPrefix': 'Guidance for Deploying a Prebid Server on AWS/v1.2.0'
             }
         }
     )
@@ -198,7 +199,7 @@ def metrics_etl_job(template):
                     'Arn'
                 ]
             },
-            'Timeout': globals.GLUE_TIMEOUT_MINS
+            'Timeout': stack_constants.GLUE_TIMEOUT_MINS
         }
     )
 
@@ -771,6 +772,26 @@ def prebid_task_default_policy(template):
                                     Match.string_like_regexp("ContainerImageConfigFiles"),
                                     'Arn'
                                 ]
+                            },
+                            {
+                                'Fn::Join': [
+                                    '',
+                                    [
+                                        {
+                                            'Fn::GetAtt': [
+                                                Match.string_like_regexp("Bucket"),
+                                                'Arn'
+                                            ]
+                                        },
+                                        '/*'
+                                    ]
+                                ]
+                            },
+                            {
+                                'Fn::GetAtt': [
+                                    Match.string_like_regexp("Bucket"),
+                                    'Arn'
+                                ]
                             }
                         ]
                     },
@@ -878,7 +899,7 @@ def prebid_public_load_balancing_target_group(template):
         'HealthCheckPath': '/status',
         'HealthCheckTimeoutSeconds': 5,
         'Port': 80,
-        'Protocol': 'HTTP',
+        'Protocol': 'HTTPS',
         'TargetGroupAttributes': [
             {
                 'Key': 'stickiness.enabled',
@@ -903,7 +924,10 @@ def prebid_fargate_svc_service(template):
                 },
                 {
                     'CapacityProvider': 'FARGATE_SPOT',
-                    'Weight': 1
+                    'Weight': {
+                        "Ref": "SpotInstanceWeight"
+                    }
+
                 }
             ],
             'Cluster': {
@@ -920,12 +944,12 @@ def prebid_fargate_svc_service(template):
                 'MaximumPercent': 200,
                 'MinimumHealthyPercent': 50
             },
-            'EnableECSManagedTags': False,
+            'EnableECSManagedTags': True,
             'HealthCheckGracePeriodSeconds': 60,
             'LoadBalancers': [
                 {
                     'ContainerName': 'Prebid-Container',
-                    'ContainerPort': 8080,
+                    'ContainerPort': 8443,
                     'TargetGroupArn': {
                         'Ref': Match.string_like_regexp("ALBTargetGroup"),
                     }
@@ -952,6 +976,7 @@ def prebid_fargate_svc_service(template):
                     ]
                 }
             },
+            "PropagateTags": "TASK_DEFINITION",
             'TaskDefinition': {
                 'Ref': Match.string_like_regexp("PrebidTaskDef"),
             }
@@ -965,7 +990,7 @@ def ecs_util_cpu_alarm(template):
         'DatapointsToAlarm': 1,
         'Threshold': 72,
         'ComparisonOperator': 'GreaterThanOrEqualToThreshold',
-        'TreatMissingData': 'missing',
+        'TreatMissingData': 'notBreaching',
         'Metrics': [
             {
                 'Id': 'ecs_cpu_utilization',
@@ -985,7 +1010,7 @@ def ecs_util_memory_alarm(template):
         'DatapointsToAlarm': 1,
         'Threshold': 55,
         'ComparisonOperator': 'GreaterThanOrEqualToThreshold',
-        'TreatMissingData': 'missing',
+        'TreatMissingData': 'notBreaching',
         'Metrics': [
             {
                 'Id': 'ecs_memory_utilization',
@@ -1020,7 +1045,7 @@ def alb5xx_error_alarm(template):
         'DatapointsToAlarm': 1,
         'Threshold': 0,
         'ComparisonOperator': 'GreaterThanThreshold',
-        'TreatMissingData': 'missing'
+        'TreatMissingData': 'notBreaching'
     })
 
 
@@ -1046,7 +1071,7 @@ def alb4xx_error_alarm(template):
         'DatapointsToAlarm': 1,
         'Threshold': 1,
         'ComparisonOperator': 'GreaterThanThreshold',
-        'TreatMissingData': 'missing'
+        'TreatMissingData': 'notBreaching'
     })
 
 
@@ -1130,21 +1155,6 @@ def efs_cleanup_vpc_custom_res(template):
                 Match.string_like_regexp("EfsCleanupSecurityGroup"),
                 'GroupId'
             ]
-        }
-    })
-
-
-def solution_metrics_anonymous_data(template):
-    template.has_resource_properties("Custom::AnonymousData", {
-        'ServiceToken': {
-            'Fn::GetAtt': [
-                'MetricsMetricsFunctionD6992891',
-                'Arn'
-            ]
-        },
-        'Solution': 'SO0248',
-        'Region': {
-            'Ref': 'AWS::Region'
         }
     })
 
@@ -1633,3 +1643,59 @@ def metrics_etl_timer_table(template):
 
     assert 'org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat' == input_format_capture.as_string()
     assert 'org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat' == output_format_capture.as_string()
+
+
+def access_logs_bucket(template):
+    """Test the access logs bucket configuration"""
+    template.has_resource_properties(
+        "AWS::S3::Bucket",
+        {
+            "LifecycleConfiguration": {
+                "Rules": Match.array_with([
+                    Match.object_like({
+                        "Status": "Enabled",
+                        "Id": "AccessLogsLifecycle",
+                        "ExpirationInDays": 90
+                    })
+                ])
+            }
+        }
+    )
+    
+    template.has_resource_properties(
+        "AWS::S3::BucketPolicy",
+        {
+            "PolicyDocument": {
+                "Statement": Match.array_with([
+                    Match.object_like({
+                        "Action": "s3:PutObject",
+                        "Effect": "Allow",
+                        "Principal": {
+                            "Service": "logging.s3.amazonaws.com"
+                        },
+                        "Condition": {
+                            "StringEquals": {
+                                "aws:SourceAccount": {
+                                    "Ref": "AWS::AccountId"
+                                }
+                            }
+                        }
+                    })
+                ])
+            }
+        }
+    )
+
+def stored_requests_bucket(template):
+    """Test the stored requests bucket configuration"""
+    template.has_resource_properties(
+        "AWS::S3::Bucket",
+        {
+            "LoggingConfiguration": {
+                "DestinationBucketName": {
+                    "Ref": Match.string_like_regexp("StoredRequestsAccessLogsBucket")
+                },
+                "LogFilePrefix": "stored-requests-bucket-logs/"
+            }
+        }
+    )

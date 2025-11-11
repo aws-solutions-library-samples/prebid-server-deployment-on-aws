@@ -1,5 +1,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
+import os
+from pathlib import Path
 
 from constructs import Construct
 from aws_cdk import (
@@ -17,7 +19,7 @@ from aws_solutions.cdk.aws_lambda.python.lambda_alarm import (
     SolutionsLambdaFunctionAlarm,
 )
 from aws_solutions.cdk.aws_lambda.layers.aws_lambda_powertools import PowertoolsLayer
-import prebid_server.stack_constants as globals
+import prebid_server.stack_constants as stack_constants
 
 
 class OperationalMetricsConstruct(Construct):
@@ -34,6 +36,7 @@ class OperationalMetricsConstruct(Construct):
         self._create_iam_policy_for_custom_resource_lambda()
         self._create_operational_metrics_lambda()
         self._create_operational_metrics_custom_resource()
+        self._create_operational_metrics_layer()
 
     def _create_iam_policy_for_custom_resource_lambda(self):
         secrets_manager_statement = PolicyStatement(
@@ -67,7 +70,7 @@ class OperationalMetricsConstruct(Construct):
         self._operational_metrics_lambda = SolutionsPythonFunction(
             self,
             "CreateOperationalMetrics",
-            globals.CUSTOM_RESOURCES_PATH / "operational_metrics" / "ops_metrics.py",
+            stack_constants.CUSTOM_RESOURCES_PATH / "operational_metrics" / "ops_metrics.py",
             "event_handler",
             runtime=awslambda.Runtime.PYTHON_3_11,
             description="Lambda function for custom resource for the creating anonymous operational metrics",
@@ -77,6 +80,8 @@ class OperationalMetricsConstruct(Construct):
             environment={
                 "SOLUTION_ID": self.node.try_get_context("SOLUTION_ID"),
                 "SOLUTION_VERSION": self.node.try_get_context("SOLUTION_VERSION"),
+                "SOLUTION_NAME": self.node.try_get_context("SOLUTION_NAME"),
+                "SOLUTION_APPLICATION_TYPE": stack_constants.SOLUTION_APPLICATION_TYPE,
                 "STACK_NAME": Aws.STACK_NAME,
                 "RESOURCE_PREFIX": Aws.STACK_NAME,
                 "METRICS_NAMESPACE": self.node.try_get_context("METRICS_NAMESPACE"),
@@ -118,3 +123,21 @@ class OperationalMetricsConstruct(Construct):
         self._operational_metrics_custom_resource.node.add_dependency(
             self.operational_metrics_lambda_iam_policy
         )
+        
+    def _create_operational_metrics_layer(self):
+        """
+        This function creates the op-metrics lambda layer used by lambda functions that collect and report
+        custom operational metrics
+        """
+        self.operational_metrics_layer = awslambda.LayerVersion(
+            self,
+            "metrics-layer",
+            code=awslambda.Code.from_asset(
+                path=os.path.join(
+                    f"{Path(__file__).parents[1]}", "aws_lambda_layers/metrics_layer/"
+                )
+            ),
+            layer_version_name=f"{Aws.STACK_NAME}-metrics-layer",
+            compatible_runtimes=[awslambda.Runtime.PYTHON_3_11],
+        )
+        
