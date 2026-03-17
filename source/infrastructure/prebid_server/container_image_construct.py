@@ -29,7 +29,8 @@ class ContainerImageConstruct(Construct):
             scope,
             id,
             solutions_template_options,
-            stored_requests_bucket
+            stored_requests_bucket,
+            deploy_bidding_simulator=False
     ) -> None:
         """
         This construct creates Docker image.
@@ -46,11 +47,17 @@ class ContainerImageConstruct(Construct):
             # When running cdk-deploy, unless ECR_REGISTRY is set we will build the image locally
             logger.info("Prepare ECS container image from image asset.")
 
+            # Set build argument based on deploy_bidding_simulator flag
+            build_args = {
+                "INCLUDE_AMT_BIDDER": "true" if deploy_bidding_simulator else "false"
+            }
+
             asset = DockerImageAsset(
                 self,
                 ECR_REPO_NAME,
                 directory=docker_build_location,
                 platform=Platform.LINUX_AMD64,
+                build_args=build_args
             )
 
             self.image_ecs_obj = ecs.ContainerImage.from_docker_image_asset(asset)

@@ -17,7 +17,9 @@ class ECSTaskConstruct(Construct):
             prebid_fs,
             prebid_fs_access_point,
             docker_configs_manager_bucket,
-            stored_requests_bucket
+            stored_requests_bucket,
+            simulator_endpoint=None,
+            enable_analytics=False
     ) -> None:
         """
         This construct creates EFS resources.
@@ -94,6 +96,11 @@ class ECSTaskConstruct(Construct):
             stream_prefix="Prebid", mode=ecs.AwsLogDriverMode.NON_BLOCKING, log_group=log_group
         )
 
+        # Determine environment variable values based on parameters
+        amt_enabled = "true" if simulator_endpoint else "false"
+        amt_endpoint = simulator_endpoint if simulator_endpoint else "bidder-simulator-endpoint"
+        analytics_enabled = "true" if enable_analytics else "false"
+
         # Add Container to Task Definition
         self.prebid_container = self.prebid_task_definition.add_container(
             "Prebid-Container",
@@ -101,6 +108,9 @@ class ECSTaskConstruct(Construct):
             port_mappings=[ecs.PortMapping(container_port=stack_constants.CONTAINER_PORT)],
             logging=log_driver,
             environment={
+                "AMT_ADAPTER_ENABLED": amt_enabled,
+                "LOG_ANALYTICS_ENABLED": analytics_enabled,
+                "AMT_BIDDING_SERVER_SIMULATOR_ENDPOINT": amt_endpoint,
                 "ECS_ENABLE_SPOT_INSTANCE_DRAINING": "true",
                 "DOCKER_CONFIGS_S3_BUCKET_NAME": docker_configs_manager_bucket.bucket_name,
                 "SETTINGS_S3_BUCKET": stored_requests_bucket.bucket_name,

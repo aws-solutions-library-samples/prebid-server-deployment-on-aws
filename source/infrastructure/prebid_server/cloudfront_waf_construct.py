@@ -7,10 +7,10 @@ from aws_cdk import (
     aws_kms as kms,
     aws_s3 as s3,
     aws_cloudfront_origins as cloudfront_origins,
-    aws_iam as iam
+    aws_iam as iam,
 )
 
-from aws_cdk import Aws, CustomResource, Duration, RemovalPolicy
+from aws_cdk import Aws, CfnOutput, CustomResource, Duration, RemovalPolicy
 from aws_lambda_layers.aws_solutions.layer import SolutionsLayer
 from aws_solutions.cdk.aws_lambda.layers.aws_lambda_powertools import PowertoolsLayer
 from aws_solutions.cdk.aws_lambda.python.function import SolutionsPythonFunction
@@ -237,7 +237,7 @@ class CloudFrontWafConstruct(Construct):
         # Define the custom behavior for /cache* paths
         cache_behavior = cloudfront.BehaviorOptions(
             origin=origin,
-            allowed_methods=cloudfront.AllowedMethods.ALLOW_GET_HEAD,
+            allowed_methods=cloudfront.AllowedMethods.ALLOW_ALL,
             cache_policy=cache_policy,
             response_headers_policy=response_headers_policy,
             origin_request_policy=cloudfront.OriginRequestPolicy.ALL_VIEWER,

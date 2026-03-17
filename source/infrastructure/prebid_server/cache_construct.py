@@ -118,7 +118,7 @@ class CacheConstruct(Construct):
                     "image": awslambda.Runtime.PYTHON_3_11.bundling_image,
                     "command": [
                         "bash", "-c",
-                        "pip install redis cachetools --no-deps -t /asset-output/python && cp -au . /asset-output/python/"
+                        "pip install redis cachetools --no-deps -t /asset-output/python && cp -ru . /asset-output/python/"
                     ],
                 }
             ),

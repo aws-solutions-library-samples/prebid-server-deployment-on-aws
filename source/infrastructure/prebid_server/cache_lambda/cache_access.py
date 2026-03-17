@@ -62,6 +62,7 @@ class ElastiCacheIAMProvider(redis.CredentialProvider):
         self.region = region
 
         session = botocore.session.get_session()
+        self.session = session  # prevent GC — RequestSigner holds weak refs to session internals
         self.request_signer = RequestSigner(
             ServiceId("elasticache"),
             self.region,
@@ -191,6 +192,8 @@ def handle_get_request(event):
         dict: HTTP response with cached value or error message
     """
     key = event.get("queryStringParameters", {}).get("uuid")
+    origin = event.get("headers", {}).get("origin")
+
     if not key:
         return {
             "statusCode": 400,
@@ -236,9 +239,11 @@ def handle_get_request(event):
                 "headers": {
                     # https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Expiration.html#expiration-individual-objects
                     "Cache-Control": f"max-age={remaining_ttl}",
-                    "Content-Type": f"application/{parsed_value['type']}"
+                    "Content-Type": f"application/{parsed_value['type']}",
+                    "Access-Control-Allow-Origin" : origin or "*",
+                    "Access-Control-Allow-Credentials" : "true"
                 },
-                "body": json.dumps(parsed_value["value"])
+                "body": parsed_value["value"]
             }
         except json.JSONDecodeError:
             return {
