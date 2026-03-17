@@ -18,9 +18,7 @@
 
 Guidance for Deploying a Prebid Server on AWS helps customers deploy and operate Prebid Server, an open source solution for real-time ad monetization, in their own AWS environment. The solution enables customers with ad-supported websites to achieve scaled access to advertising revenue through a community of more than 180+ advertising platforms. Customers achieve full control over decision logic and access to transaction data, and realize AWS benefits like global scalability and pay-as-you-go economics.
 
-This solution deploys v3.27.0 of [Prebid Server Java](https://github.com/prebid/prebid-server-java.git) with infrastructure in a single region of the AWS Cloud to handle a wide range of request traffic, and recording of auction and bid transaction data.
-
-![Guidance for Deploying a Prebid Server on AWS](docs/prebid-server-deployment-on-aws.png)
+This solution deploys v3.28.0 of [Prebid Server Java](https://github.com/prebid/prebid-server-java.git) with infrastructure in a single region of the AWS Cloud to handle a wide range of request traffic, and recording of auction and bid transaction data.
 
 ### Key Features
 
@@ -32,11 +30,27 @@ This solution deploys v3.27.0 of [Prebid Server Java](https://github.com/prebid/
 
 - **Ownership of all operational and business data**: All data from Prebid Server metrics extract, transform, and load (ETL) to AWS Glue Data Catalog for seamless integration with various clients, such as Amazon Athena, Amazon Redshift, and Amazon SageMaker AI.
 
-- **Integration with Service Catalog AppRegistry and Application Manager**: Centrally manage the solution's resources and enable application search, reporting, and management actions.
+- **AWS RTB Fabric integration**: Optionally route bid requests through [AWS RTB Fabric](https://aws.amazon.com/rtb-fabric/), a private network purpose-built for real-time bidding. RTB Fabric provides low-latency, cost-optimized connectivity between Prebid Server and bidder endpoints without traversing the public internet.
+
+- **Quick start with bidder simulator**: Deploy an optional bidder simulator stack to quickly test and validate your Prebid Server deployment without needing to configure external bidders.
+
+- **Demo page**: Demo page can be used to validate the end-to-end flow from prebid.js through Prebid Server to the bidder simulator (see [README](source/loadtest/demo/README.md)).
+
+**Note**: This solution consists of two CDK stacks:
+1. **Main Prebid Server Stack**: The core infrastructure for running Prebid Server (always deployed)
+2. **Bidder Simulator Stack**: An optional stack for quick start testing and validation that can be deployed using the `--deploy-bidding-simulator` flag
 
 ### Architecture
 
-The solution uses AWS CDK and AWS Solutions Constructs to create well-architected applications. All AWS Solutions Constructs are reviewed by AWS and use best practices established by the AWS Well-Architected Framework.
+The solution uses AWS CDK and AWS Solutions Constructs to create well-architected applications. All AWS Solutions Constructs are reviewed by AWS and use best practices established by the AWS Well-Architected Framework. Review the [solutions guidance landing page](https://aws.amazon.com/solutions/guidance/deploying-a-prebid-server-on-aws/) for detailed architecture diagrams.
+
+### Overall Solution Architecture
+![Guidance for Deploying a Prebid Server on AWS](docs/prebid-server-deployment-on-aws.png)
+
+### Log Analytics Component Architecture
+![Guidance for Deploying a Prebid Server on AWS - Log analytics](docs/prebid-server-deployment-on-aws-log-analytics.png)
+
+
 
 ## Cost
 
@@ -60,6 +74,27 @@ The following table provides a sample cost breakdown for deploying this Guidance
 | Other services | Amazon CloudFront, AWS CloudTrail AWS DataSync, IAM, AWS Glue, AWS KMS, AWS Lambda, and Amazon VPC | $47.00 |
 | **Total** | | **$241.50** |
 
+**Optional: AWS RTB Fabric cost (when deployed with `--include-rtb-fabric`)**
+
+| AWS service  | Dimensions | Cost [USD] |
+| ----------- | ------------ | ------------ |
+| AWS RTB Fabric | Requester Gateway, Responder Gateway, Fabric Link — no per-transaction charges with zero traffic. | $0.00 |
+| AWS RTB Fabric (with 50GB traffic) | Assuming ~10 KB avg bid request, 3 AWS RTB Fabric linked internal bidders per auction, 50 GB outbound traffic (responses are DT-IN and free), internal transaction pricing ($3/billion), data transfer pricing ($0.02/GB) | $16.00 |
+
+For current RTB Fabric pricing details, see the [AWS RTB Fabric pricing page](https://aws.amazon.com/rtb-fabric/pricing/). With incoming traffic, costs scale based on the volume and size of RTB requests sent through the Fabric Link. Note that bid responses returning to Prebid Server are data transfer IN and incur no charges.
+
+**Cost comparison: RTB Fabric vs NAT Gateway (50GB monthly outbound traffic)**
+
+Assuming 3 bidders per auction with ~10 KB average bid request size per bidder:
+- Total data per auction: 10 KB × 3 internal bidders = 30 KB outbound
+- Number of auctions: 50 GB / 30 KB ≈ 1.67 million auctions
+- Total bid requests: 1.67M auctions × 3 bidders = 5 million requests (0.005 billion)
+- RTB Fabric transaction cost: 0.005 billion × $3.00 = $15.00
+- RTB Fabric data transfer cost: 50 GB × $0.02 = $1.00
+- **Total RTB Fabric cost: $16.00**
+- **NAT Gateway cost (baseline): $69.00**
+- **Monthly savings: $53.00 (77% reduction)**
+
 ## Prerequisites
 
 ### Operating System
@@ -71,10 +106,11 @@ These deployment instructions are optimized to best work on **macOS, Linux, or W
 * [Pypi/Pip](https://pypi.org/project/pip/) 25.0 or newer
 * [Poetry](https://python-poetry.org/docs/#installing-with-pipx) 2.0 or newer
 * [Node.js](https://nodejs.org/en/) 16.x or newer 
-* [AWS CDK](https://aws.amazon.com/cdk/) 2.140.0 or newer 
+* [AWS CDK](https://aws.amazon.com/cdk/) 2.236.0 or newer 
 * [Amazon Corretto OpenJDK](https://docs.aws.amazon.com/corretto/) 21
 * [Apache Maven](https://maven.apache.org/) 3.9.9
-* [Docker](https://docs.docker.com/engine/)
+* [Docker](https://docs.docker.com/engine/). Please ensure docker daemon is running before running cdk deployment.
+  * **Alternative**: You can use [Finch](https://github.com/runfinch/finch) as a Docker Desktop alternative. Set `export CDK_DOCKER=finch` in your environment to use Finch with CDK.
 * [AWS access key ID and secret access key](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html) configured in your environment with AdministratorAccess equivalent permissions
 
 ### AWS account requirements
@@ -89,9 +125,65 @@ This Guidance uses aws-cdk. If you are using aws-cdk for the first time, please 
 cdk bootstrap --cloudformation-execution-policies arn:aws:iam::aws:policy/AdministratorAccess
 ```
 
+### RTB Fabric requirements
+
+- AWS RTB Fabric must be available in your deployment region
+
 ## Deployment Steps
 
-1. Clone the repo using command:
+### 1. Quick Deploy with deploy.sh
+
+For a streamlined deployment experience on Linux/macOS, use the provided `deploy.sh` script:
+
+1. Clone the repo:
+   ```bash
+   git clone https://github.com/aws-solutions-library-samples/prebid-server-deployment-on-aws.git
+   ```
+
+2. Change to the repo folder:
+   ```bash
+   cd deploying-prebid-server-on-aws
+   ```
+
+3. Run the deployment script:
+   ```bash
+   # Deploy with analytics (most common use case)
+   ./deploy.sh --enable-log-analytics --profile <your-aws-cli-profile> --region <your-region>
+
+   # Deploy with bidder simulator
+   ./deploy.sh --deploy-bidding-simulator --profile <your-aws-cli-profile> --region <your-region>
+
+   # Deploy with bidder simulator and RTB Fabric
+   ./deploy.sh --deploy-bidding-simulator --include-rtb-fabric --profile <your-aws-cli-profile> --region <your-region>
+
+   # Deploy with all features enabled
+   ./deploy.sh --deploy-bidding-simulator --include-rtb-fabric --enable-log-analytics --profile <your-aws-cli-profile> --region <your-region>
+   ```
+
+   The `deploy.sh` script automatically:
+   - Copies AMT bidder files to the Docker build context when `--deploy-bidding-simulator` is used
+   - Sets up the Python virtual environment
+   - Installs dependencies
+   - Runs CDK with the appropriate context flags
+
+   When RTB Fabric is enabled (`--include-rtb-fabric`), the solution creates:
+   - A **Requester Gateway** in the Prebid Server VPC (sends bid requests)
+   - A **Responder Gateway** in the Bidder Simulator VPC (receives bid requests)
+   - A **Fabric Link** connecting the two gateways through AWS RTB Fabric's private network
+   - A Lambda function to automatically accept the Fabric Link
+
+   Prebid Server is then configured to route bid requests through the RTB Fabric link URL instead of directly to the bidder simulator ALB.
+
+   For other deployment options and usage details, run:
+   ```bash
+   ./deploy.sh --help
+   ```
+
+### 2. Customization, Build and Deploy
+
+For customization or manual deployment, follow these steps:
+
+1. Clone the repo:
    ```bash
    git clone https://github.com/aws-solutions-library-samples/prebid-server-deployment-on-aws.git
    ```
@@ -116,7 +208,7 @@ cdk bootstrap --cloudformation-execution-policies arn:aws:iam::aws:policy/Admini
    sh ./run-unit-tests.sh --in-venv 1
    ```
 
-5. Build the solution for deployment:
+5. Build and deploy the solution:
 
    **Prebid Server Container Image**
    
@@ -126,21 +218,36 @@ cdk bootstrap --cloudformation-execution-policies arn:aws:iam::aws:policy/Admini
    export OVERRIDE_ECR_REGISTRY=your-fully-qualified-image-name
    ```
 
-   **Using AWS CDK (recommended)**
+   **Manual Deployment with AWS CDK**
    
-   Packaging and deploying the solution with the AWS CDK allows for the most flexibility in development:
+   If deploying with the bidder simulator, first copy the AMT bidder files:
+
    ```bash
-   cd ../source/infrastructure
+   # Copy AMT bidder files (only needed when deploying with simulator)
+   cp -r source/loadtest/amt-bidder deployment/ecr/prebid-server/
+   ```
+
+   Then deploy using CDK:
+
+   ```bash
+   cd source/infrastructure
 
    # bootstrap CDK (required once - deploys a CDK bootstrap CloudFormation stack for assets)  
    cdk bootstrap --cloudformation-execution-policies arn:aws:iam::aws:policy/AdministratorAccess
 
-   # build the solution 
-   cdk synth
+   # build and deploy with bidder simulator
+   cdk deploy --all --context deployBiddingSimulator=true --profile <your-aws-cli-profile> --region <your-region>
 
-   # build and deploy the solution 
-   cdk deploy
+   # build and deploy with bidder simulator and RTB Fabric
+   cdk deploy --all --context deployBiddingSimulator=true --context includeRtbFabric=true --profile <your-aws-cli-profile> --region <your-region>
+
+   # or deploy without bidder simulator (no file copy needed)
+   cdk deploy --all --profile <your-aws-cli-profile> --region <your-region>
    ```
+
+   **Advanced Configuration**
+   
+   For advanced customization or troubleshooting, refer to the [loadtest component readme](./source/loadtest/README.md) which contains detailed information about bidder simulator configuration and manual CDK deployment instructions.
 
 ## Deployment Validation
 
@@ -149,6 +256,8 @@ After deploying the solution:
 1. Open the CloudFormation console and verify the status of the template with the name starting with your solution name.
 2. If deployment is successful, you should see an active ECS cluster with the Prebid Server tasks running.
 3. Verify that the Application Load Balancer is in service.
+4. If bidder simulator is deployed, follow the instructions [here](./source/loadtest/README.md) to load test the deployment.
+5. Test prebid.js integration following the instructions demo website readme [here](source/loadtest/demo/README.md).
 
 ## Running the Guidance
 
@@ -188,33 +297,85 @@ To enable psdoaAnalytics, set LOG_ANALYTICS_ENABLED=true
 export LOG_ANALYTICS_ENABLED=true
 ```
 
+### RTB Fabric Integration
+
+[AWS RTB Fabric](https://aws.amazon.com/rtb-fabric/) is a private network purpose-built for real-time bidding that provides low-latency, cost-optimized connectivity between ad tech participants without traversing the public internet.
+
+#### How It Works
+
+When RTB Fabric is enabled (`--include-rtb-fabric`), the solution creates the following architecture:
+
+```
+Prebid Server VPC                          Bidder Simulator VPC
+┌──────────────────────┐                    ┌─────────────────────┐
+│  ECS Fargate Tasks   │                    │  ALB + Lambda       │
+│  (Prebid Server)     │                    │  (Bidder Simulator) │
+│         │            │                    │         ▲           │
+│         ▼            │                    │         │           │
+│  Requester Gateway ──┼── Fabric Link ─────┼── Responder Gateway │
+│  (HTTPS, port 443)   │  (RTB Fabric)      │  (HTTP, port 80)    │
+└──────────────────────┘                    └─────────────────────┘
+```
+
+- **Requester Gateway**: Deployed in the Prebid Server VPC. Sends bid requests over HTTPS (port 443) through RTB Fabric.
+- **Responder Gateway**: Deployed in the Bidder Simulator VPC. Receives bid requests over HTTP (port 80) and forwards them to the bidder simulator ALB.
+- **Fabric Link**: Connects the two gateways. Uses asymmetric security — HTTPS from requester to responder, HTTP for responses on the internal AWS network.
+
+#### Connectivity Modes
+
+The solution supports two connectivity modes between Prebid Server and the Bidder Simulator:
+
+| Mode | Flag | Description |
+|------|------|-------------|
+| RTB Fabric | `--include-rtb-fabric` | Traffic routed through AWS RTB Fabric private network. Requires `--deploy-bidding-simulator`. |
+| VPC Peering | (default when simulator is deployed) | Direct VPC peering connection between the two VPCs. Automatically configured with routes and security group rules. |
+
+When neither mode is applicable (no bidder simulator deployed), Prebid Server connects to external bidders over the public internet through the NAT gateways.
+
 ## Next Steps
 
 After deploying the solution, consider the following next steps:
-1. Follow the instructions in the [loadtest component readme](./source/loadtest/README.md) to deploy a demo bidder application and test it with the pre-bid server or load test the deployment.
-2. **Customize Prebid Server Configuration**: Modify the configuration files in the S3 bucket to match your specific requirements.
-3. **Enable Analytics**: Enable the psdoaAnalytics adapter to collect and analyze auction data.
-4. **Set Up Monitoring**: Configure additional CloudWatch alarms or dashboards to monitor the performance of your Prebid Server.
-5. **Integrate with Your Applications**: Update your client applications to use the deployed Prebid Server.
-6. **Optimize for Cost**: Review the cost tables and adjust the infrastructure based on your actual traffic patterns.
+1. **Customize Prebid Server Configuration**: Modify the configuration files in the S3 bucket to match your specific requirements.
+2. **Analyze Auction Data**: Analyze the auction data generated by psdoaAnalytics adapter using AWS analytics services like Amazon Athena or Amazon Sagemaker.
+3. **Set Up Monitoring**: Configure additional CloudWatch alarms or dashboards to monitor the performance of your Prebid Server.
+4. **Integrate with Your Applications**: Update your client applications to use the deployed Prebid Server.
+5. **Optimize for Cost**: Review the cost tables and adjust the infrastructure based on your actual traffic patterns.
 
 ## Cleanup
 
-To delete the deployed solution:
+To delete the deployed solution, use the provided `destroy.sh` script:
+
+```bash
+# Destroy with confirmation prompts
+./destroy.sh --profile <your-aws-cli-profile> --region <your-region>
+
+# Preview what would be destroyed (no actual deletion)
+./destroy.sh --dry-run --profile <your-aws-cli-profile> --region <your-region>
+```
+
+The script automatically detects which stacks are deployed (Prebid Server, Bidder Simulator) and destroys them in the correct order. RTB Fabric resources (gateways, links) are automatically cleaned up as part of their parent stacks.
+
+For all options, run `./destroy.sh --help`.
+
+Alternatively, you can delete stacks manually:
 
 1. Navigate to the AWS CloudFormation console.
-2. Select the stack that was created for this solution.
-3. Click "Delete" and confirm the deletion.
+2. Delete the `prebid-server-deployment-on-aws` stack first.
+3. Delete the `BiddingServerSimulator` stack (if deployed).
 4. Note that some resources like S3 buckets with content may require manual deletion.
 
 ## FAQ, Known Issues, Additional Considerations, and Limitations
 
+### Known Issues
+ - When deploying RTB fabric components for the first time you may hit an error related to Service Linked IAM role. This could be a timing issue as the first api call is setting up IAM role in the background. Validate in IAM console that the AWS RTB Fabric Service linked role exist and Re-run the deployment again
+ - The demo website uses pre-built jar files hosted on 3rd party CDN. As versions of these dependencies roll, these may need to be re-pointed
+
 ### Additional considerations
 
-- This solution creates a public AWS bucket required for the use-case.
-- The solution creates unauthenticated public API endpoints.
-
-For any feedback, questions, or suggestions, please use the issues tab under the [GitHub repository](https://github.com/aws-solutions-library-samples/prebid-server-deployment-on-aws).
+- All S3 buckets created by this solution have public access blocked and use encryption at rest.
+- CloudFront deployment mode uses custom header authentication. ALB-only mode requires user-provided SSL certificates for HTTPS.
+- Customers are responsible for reviewing and validating all IAM roles, policies, and security group configurations created by this solution to ensure they meet their organization's security requirements and compliance standards.
+- For any feedback, questions, or suggestions, please use the issues tab under the [GitHub repository](https://github.com/aws-solutions-library-samples/prebid-server-deployment-on-aws).
 
 ## Revisions
 See [CHANGELOG.md](./CHANGELOG.md) for revisions.
