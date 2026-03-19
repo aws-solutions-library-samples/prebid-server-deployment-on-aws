@@ -34,6 +34,9 @@ source/.coverage.*
 ### VisualStudioCode ###
 .vscode/*
 
+### KiroIDE ###
+.kiro/*
+
 ### IntelliJ/ PyCharm ###
 **/.idea/*
 
@@ -62,6 +65,14 @@ source/scheduler/cdk/aws_solutions/scheduler/cdk/aws_lambda/get_next_scheduled_e
 # java build files
 **/java/**/build
 
+# Maven build artifacts
+**/target/
+**/dependency-reduced-pom.xml
+
+## Java Testing
+**/test-results/
+**/consolidated-test-report.txt
+
 # python build files
 source/cdk_solution_helper_py/helpers_cdk/build/*
 source/cdk_solution_helper_py/helpers_common/build/*
@@ -83,3 +94,11 @@ source/infrastructure/custom_resources/prebid_configs_lambda/stored_requests
 source/infrastructure/custom_resources/prebid_configs_lambda/stored_responses
 source/infrastructure/custom_resources/prebid_configs_lambda/stored_impressions
 source/infrastructure/custom_resources/docker_configs_bucket_lambda/*
+
+# mise
+.mise.toml
+
+# node
+dist
+node_modules
+package-lock.json

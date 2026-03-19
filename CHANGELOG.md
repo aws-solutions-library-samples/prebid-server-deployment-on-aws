@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2025-03-18
+
+### Added
+- RTB Fabric integration with requester and responder gateways
+- VPC peering support for bidding simulator when not using RTB Fabric
+- Demo website with Prebid.js integration (banner and video ad units)
+- VAST instream video support in bidder simulator
+- Destroy script for stack cleanup
+- Lambda functions for RTB Fabric link acceptance and gateway readiness checks
+- Automated bidder simulator deployment via CDK context flag `deployBiddingSimulator`
+- Automated AMT adapter configuration and Docker build integration
+- Analytics adapter control via CDK context flag `enableLogAnalytics`
+- Test scripts for auction validation (test-auction-amt.py)
+- Example JSON files for auction request/response format
+
+### Changed
+- Refactored bidder simulator to CloudFront + ALB + Lambda architecture
+- Consolidated demo_bidder and loadtest_bidder into single loadtest_bidder
+- Updated AWS Lambda runtime to Python 3.11
+- Replaced internal CloudFront with ALB for bidding simulator
+- Updated cache Lambda bundling to use `cp -ru` instead of `cp -au`
+- Fixed ElastiCache IAM provider to handle botocore weak references in Python 3.11 runtime
+- AMT bidder files now conditionally included in Docker build based on deployment flag
+- Environment variables automatically configured for AMT adapter and analytics
+- Prebid Server configuration uses environment variable substitution for runtime settings
+
+### Fixed
+- Removed deprecated --bidder-type parameter from deploy.sh
+- Fixed indentation error in bidder_simulator_stack.py
+- Fixed botocore session garbage collection issue in ElastiCache IAM provider
+
+### Removed
+- Removed deprecated demo_bidder Lambda function
+- Removed --bidder-type parameter from deployment scripts
+
 ## [1.2.0] - 2025-11-11
 
 - Conversion to guidance

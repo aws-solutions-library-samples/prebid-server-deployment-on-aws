@@ -1,0 +1,619 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.2">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="Prebid Server Test Plan" enabled="true">
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.tearDown_on_shutdown">true</boolProp>
+      <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
+        <collectionProp name="Arguments.arguments"/>
+      </elementProp>
+    </TestPlan>
+    <hashTree>
+      <Arguments guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
+        <collectionProp name="Arguments.arguments">
+          <elementProp name="url" elementType="Argument">
+            <stringProp name="Argument.name">url</stringProp>
+            <stringProp name="Argument.value">https://d3fi9mhtfrbnoc.cloudfront.net</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="contentType" elementType="Argument">
+            <stringProp name="Argument.name">contentType</stringProp>
+            <stringProp name="Argument.value">application/json</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="method" elementType="Argument">
+            <stringProp name="Argument.name">method</stringProp>
+            <stringProp name="Argument.value">GET</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="auctionMethod" elementType="Argument">
+            <stringProp name="Argument.name">auctionMethod</stringProp>
+            <stringProp name="Argument.value">POST</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+        </collectionProp>
+      </Arguments>
+      <hashTree/>
+      <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree" enabled="true">
+        <boolProp name="ResultCollector.error_logging">false</boolProp>
+        <objProp>
+          <name>saveConfig</name>
+          <value class="SampleSaveConfiguration">
+            <time>true</time>
+            <latency>true</latency>
+            <timestamp>true</timestamp>
+            <success>true</success>
+            <label>true</label>
+            <code>true</code>
+            <message>true</message>
+            <threadName>true</threadName>
+            <dataType>true</dataType>
+            <encoding>false</encoding>
+            <assertions>true</assertions>
+            <subresults>true</subresults>
+            <responseData>false</responseData>
+            <samplerData>false</samplerData>
+            <xml>true</xml>
+            <fieldNames>true</fieldNames>
+            <responseHeaders>false</responseHeaders>
+            <requestHeaders>false</requestHeaders>
+            <responseDataOnError>false</responseDataOnError>
+            <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+            <assertionsResultsToSave>0</assertionsResultsToSave>
+            <bytes>true</bytes>
+            <sentBytes>true</sentBytes>
+            <url>true</url>
+            <threadCounts>true</threadCounts>
+            <idleTime>true</idleTime>
+            <connectTime>true</connectTime>
+          </value>
+        </objProp>
+        <stringProp name="filename"></stringProp>
+      </ResultCollector>
+      <hashTree/>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Thread Group" enabled="true">
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true">
+          <stringProp name="LoopController.loops">1</stringProp>
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+        </elementProp>
+        <stringProp name="ThreadGroup.ramp_time">0</stringProp>
+        <boolProp name="ThreadGroup.scheduler">false</boolProp>
+        <stringProp name="ThreadGroup.duration"></stringProp>
+        <stringProp name="ThreadGroup.delay"></stringProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+        <boolProp name="ThreadGroup.delayedStart">false</boolProp>
+        <stringProp name="ThreadGroup.num_threads">1</stringProp>
+      </ThreadGroup>
+      <hashTree>
+        <RandomController guiclass="RandomControlGui" testclass="RandomController" testname="Random Controller" enabled="true">
+          <intProp name="InterleaveControl.style">1</intProp>
+        </RandomController>
+        <hashTree>
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Status HTTP Request" enabled="true">
+            <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
+            <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
+              <collectionProp name="Arguments.arguments"/>
+            </elementProp>
+            <stringProp name="HTTPSampler.path">${url}/status</stringProp>
+            <stringProp name="HTTPSampler.method">${method}</stringProp>
+            <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+            <boolProp name="HTTPSampler.auto_redirects">false</boolProp>
+            <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+            <boolProp name="HTTPSampler.DO_MULTIPART_POST">false</boolProp>
+            <boolProp name="HTTPSampler.BROWSER_COMPATIBLE_MULTIPART">false</boolProp>
+            <boolProp name="HTTPSampler.image_parser">false</boolProp>
+            <boolProp name="HTTPSampler.concurrentDwn">false</boolProp>
+            <stringProp name="HTTPSampler.concurrentPool">6</stringProp>
+            <boolProp name="HTTPSampler.md5">false</boolProp>
+            <intProp name="HTTPSampler.ipSourceType">0</intProp>
+          </HTTPSamplerProxy>
+          <hashTree>
+            <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="HTTP Header Manager" enabled="true">
+              <collectionProp name="HeaderManager.headers">
+                <elementProp name="" elementType="Header">
+                  <stringProp name="Header.name">User-Agent</stringProp>
+                  <stringProp name="Header.value">ApacheJMeter</stringProp>
+                </elementProp>
+                <elementProp name="" elementType="Header">
+                  <stringProp name="Header.name">Content-Type</stringProp>
+                  <stringProp name="Header.value">${contentType}</stringProp>
+                </elementProp>
+              </collectionProp>
+            </HeaderManager>
+            <hashTree/>
+          </hashTree>
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Info-Bidders HTTP Request" enabled="true">
+            <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
+            <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
+              <collectionProp name="Arguments.arguments"/>
+            </elementProp>
+            <stringProp name="HTTPSampler.path">${url}/info/bidders</stringProp>
+            <stringProp name="HTTPSampler.method">${method}</stringProp>
+            <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+            <boolProp name="HTTPSampler.auto_redirects">false</boolProp>
+            <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+            <boolProp name="HTTPSampler.DO_MULTIPART_POST">false</boolProp>
+            <boolProp name="HTTPSampler.BROWSER_COMPATIBLE_MULTIPART">false</boolProp>
+            <boolProp name="HTTPSampler.image_parser">false</boolProp>
+            <boolProp name="HTTPSampler.concurrentDwn">false</boolProp>
+            <stringProp name="HTTPSampler.concurrentPool">6</stringProp>
+            <boolProp name="HTTPSampler.md5">false</boolProp>
+            <intProp name="HTTPSampler.ipSourceType">0</intProp>
+          </HTTPSamplerProxy>
+          <hashTree>
+            <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="HTTP Header Manager" enabled="true">
+              <collectionProp name="HeaderManager.headers">
+                <elementProp name="" elementType="Header">
+                  <stringProp name="Header.name">User-Agent</stringProp>
+                  <stringProp name="Header.value">ApacheJMeter</stringProp>
+                </elementProp>
+                <elementProp name="" elementType="Header">
+                  <stringProp name="Header.name">Content-Type</stringProp>
+                  <stringProp name="Header.value">${contentType}</stringProp>
+                </elementProp>
+              </collectionProp>
+            </HeaderManager>
+            <hashTree/>
+          </hashTree>
+        </hashTree>
+        <RandomOrderController guiclass="RandomOrderControllerGui" testclass="RandomOrderController" testname="Random Order Controller" enabled="true"/>
+        <hashTree>
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="AMT Adapter Auction Request Returning Bids for One Imp 1" enabled="true">
+            <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+            <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+              <collectionProp name="Arguments.arguments">
+                <elementProp name="" elementType="HTTPArgument">
+                  <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                  <stringProp name="Argument.value">{&#xd;
+    &quot;id&quot;: &quot;${__UUID()}&quot;,&#xd;
+    &quot;imp&quot;: [&#xd;
+        {&quot;id&quot;: &quot;imp_id_1&quot;,&#xd;
+         &quot;banner&quot;: {&quot;w&quot;: 300, &quot;h&quot;: 250},&#xd;
+         &quot;ext&quot;: {&#xd;
+             &quot;amt&quot;: {&#xd;
+                 &quot;placementId&quot;: &quot;dsdasf&quot;,&#xd;
+                 &quot;bidFloor&quot;: 100,&#xd;
+                 &quot;bidCeiling&quot;: 100000&#xd;
+             }&#xd;
+         }&#xd;
+         },&#xd;
+        {&#xd;
+            &quot;id&quot;: &quot;imp_id_2&quot;,&#xd;
+            &quot;banner&quot;: {&quot;w&quot;: 300, &quot;h&quot;: 250},&#xd;
+            &quot;ext&quot;: {&#xd;
+                &quot;amt&quot;: {&#xd;
+                    &quot;placementId&quot;: &quot;dsdasfdsa&quot;,&#xd;
+                    &quot;bidFloor&quot;: 1,&#xd;
+                    &quot;bidCeiling&quot;: 50&#xd;
+                }&#xd;
+            }&#xd;
+        }&#xd;
+    ],&#xd;
+    &quot;device&quot;: {&#xd;
+        &quot;pxratio&quot;: 4.2,&#xd;
+        &quot;dnt&quot;: 2,&#xd;
+        &quot;language&quot;: &quot;en&quot;,&#xd;
+        &quot;ifa&quot;: &quot;ifaId&quot;&#xd;
+    },&#xd;
+    &quot;site&quot;: {&#xd;
+        &quot;page&quot;: &quot;prebid.org&quot;,&#xd;
+        &quot;publisher&quot;: {&#xd;
+            &quot;id&quot;: &quot;publisherId&quot;&#xd;
+        }&#xd;
+    },&#xd;
+    &quot;at&quot;: 1,&#xd;
+    &quot;tmax&quot;: 5000,&#xd;
+    &quot;cur&quot;: [&#xd;
+        &quot;USD&quot;&#xd;
+    ],&#xd;
+    &quot;source&quot;: {&#xd;
+        &quot;fd&quot;: 1,&#xd;
+        &quot;tid&quot;: &quot;tid&quot;&#xd;
+    },&#xd;
+    &quot;ext&quot;: {&#xd;
+        &quot;prebid&quot;: {&#xd;
+            &quot;targeting&quot;: {&#xd;
+                &quot;pricegranularity&quot;: {&#xd;
+                    &quot;precision&quot;: 2,&#xd;
+                    &quot;ranges&quot;: [&#xd;
+                        {&#xd;
+                            &quot;max&quot;: 20,&#xd;
+                            &quot;increment&quot;: 0.1&#xd;
+                        }&#xd;
+                    ]&#xd;
+                }&#xd;
+            },&#xd;
+            &quot;cache&quot;: {&#xd;
+                &quot;bids&quot;: {}&#xd;
+            },&#xd;
+            &quot;auctiontimestamp&quot;: 1000&#xd;
+        }&#xd;
+    },&#xd;
+    &quot;regs&quot;: {&quot;ext&quot;: {&quot;gdpr&quot;: 0}}&#xd;
+}</stringProp>
+                  <stringProp name="Argument.metadata">=</stringProp>
+                </elementProp>
+              </collectionProp>
+            </elementProp>
+            <stringProp name="HTTPSampler.path">${url}/openrtb2/auction</stringProp>
+            <stringProp name="HTTPSampler.method">${auctionMethod}</stringProp>
+            <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+            <boolProp name="HTTPSampler.auto_redirects">false</boolProp>
+            <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+            <boolProp name="HTTPSampler.DO_MULTIPART_POST">false</boolProp>
+            <boolProp name="HTTPSampler.BROWSER_COMPATIBLE_MULTIPART">false</boolProp>
+            <boolProp name="HTTPSampler.image_parser">false</boolProp>
+            <boolProp name="HTTPSampler.concurrentDwn">false</boolProp>
+            <stringProp name="HTTPSampler.concurrentPool">6</stringProp>
+            <boolProp name="HTTPSampler.md5">false</boolProp>
+            <intProp name="HTTPSampler.ipSourceType">0</intProp>
+          </HTTPSamplerProxy>
+          <hashTree>
+            <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="HTTP Header Manager" enabled="true">
+              <collectionProp name="HeaderManager.headers">
+                <elementProp name="" elementType="Header">
+                  <stringProp name="Header.name">User-Agent</stringProp>
+                  <stringProp name="Header.value">ApacheJMeter</stringProp>
+                </elementProp>
+                <elementProp name="" elementType="Header">
+                  <stringProp name="Header.name">Content-Type</stringProp>
+                  <stringProp name="Header.value">${contentType}</stringProp>
+                </elementProp>
+                <elementProp name="" elementType="Header">
+                  <stringProp name="Header.name">X-Source</stringProp>
+                  <stringProp name="Header.value">PSDOA-JMeter-LoadTest</stringProp>
+                </elementProp>
+                <elementProp name="" elementType="Header">
+                    <stringProp name="Header.name">X-Test-ID</stringProp>
+                    <stringProp name="Header.value">${__UUID()}</stringProp>
+                </elementProp>
+              </collectionProp>
+            </HeaderManager>
+            <hashTree/>
+          </hashTree>
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="AMT Adapter Auction Request Returning Bids for Two Imp 1" enabled="true">
+            <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+            <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+              <collectionProp name="Arguments.arguments">
+                <elementProp name="" elementType="HTTPArgument">
+                  <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                  <stringProp name="Argument.value">{&#xd;
+    &quot;id&quot;: &quot;${__UUID()}&quot;,&#xd;
+    &quot;imp&quot;: [&#xd;
+        {&quot;id&quot;: &quot;imp_id_1&quot;,&#xd;
+         &quot;banner&quot;: {&quot;w&quot;: 300, &quot;h&quot;: 250},&#xd;
+         &quot;ext&quot;: {&#xd;
+             &quot;amt&quot;: {&#xd;
+                 &quot;placementId&quot;: &quot;dsdasf&quot;,&#xd;
+                 &quot;bidFloor&quot;: 1,&#xd;
+                 &quot;bidCeiling&quot;: 100000&#xd;
+             }&#xd;
+         }&#xd;
+         },&#xd;
+        {&#xd;
+            &quot;id&quot;: &quot;imp_id_2&quot;,&#xd;
+            &quot;banner&quot;: {&quot;w&quot;: 300, &quot;h&quot;: 250},&#xd;
+            &quot;ext&quot;: {&#xd;
+                &quot;amt&quot;: {&#xd;
+                    &quot;placementId&quot;: &quot;dsdasfdsa&quot;,&#xd;
+                    &quot;bidFloor&quot;: 1,&#xd;
+                    &quot;bidCeiling&quot;: 50&#xd;
+                }&#xd;
+            }&#xd;
+        }&#xd;
+    ],&#xd;
+    &quot;device&quot;: {&#xd;
+        &quot;pxratio&quot;: 4.2,&#xd;
+        &quot;dnt&quot;: 2,&#xd;
+        &quot;language&quot;: &quot;en&quot;,&#xd;
+        &quot;ifa&quot;: &quot;ifaId&quot;&#xd;
+    },&#xd;
+    &quot;site&quot;: {&#xd;
+        &quot;page&quot;: &quot;prebid.org&quot;,&#xd;
+        &quot;publisher&quot;: {&#xd;
+            &quot;id&quot;: &quot;publisherId&quot;&#xd;
+        }&#xd;
+    },&#xd;
+    &quot;at&quot;: 1,&#xd;
+    &quot;tmax&quot;: 5000,&#xd;
+    &quot;cur&quot;: [&#xd;
+        &quot;USD&quot;&#xd;
+    ],&#xd;
+    &quot;source&quot;: {&#xd;
+        &quot;fd&quot;: 1,&#xd;
+        &quot;tid&quot;: &quot;tid&quot;&#xd;
+    },&#xd;
+    &quot;ext&quot;: {&#xd;
+        &quot;prebid&quot;: {&#xd;
+            &quot;targeting&quot;: {&#xd;
+                &quot;pricegranularity&quot;: {&#xd;
+                    &quot;precision&quot;: 2,&#xd;
+                    &quot;ranges&quot;: [&#xd;
+                        {&#xd;
+                            &quot;max&quot;: 20,&#xd;
+                            &quot;increment&quot;: 0.1&#xd;
+                        }&#xd;
+                    ]&#xd;
+                }&#xd;
+            },&#xd;
+            &quot;cache&quot;: {&#xd;
+                &quot;bids&quot;: {}&#xd;
+            },&#xd;
+            &quot;auctiontimestamp&quot;: 1000&#xd;
+        }&#xd;
+    },&#xd;
+    &quot;regs&quot;: {&quot;ext&quot;: {&quot;gdpr&quot;: 0}}&#xd;
+}</stringProp>
+                  <stringProp name="Argument.metadata">=</stringProp>
+                </elementProp>
+              </collectionProp>
+            </elementProp>
+            <stringProp name="HTTPSampler.path">${url}/openrtb2/auction</stringProp>
+            <stringProp name="HTTPSampler.method">${auctionMethod}</stringProp>
+            <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+            <boolProp name="HTTPSampler.auto_redirects">false</boolProp>
+            <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+            <boolProp name="HTTPSampler.DO_MULTIPART_POST">false</boolProp>
+            <boolProp name="HTTPSampler.BROWSER_COMPATIBLE_MULTIPART">false</boolProp>
+            <boolProp name="HTTPSampler.image_parser">false</boolProp>
+            <boolProp name="HTTPSampler.concurrentDwn">false</boolProp>
+            <stringProp name="HTTPSampler.concurrentPool">6</stringProp>
+            <boolProp name="HTTPSampler.md5">false</boolProp>
+            <intProp name="HTTPSampler.ipSourceType">0</intProp>
+          </HTTPSamplerProxy>
+          <hashTree>
+            <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="HTTP Header Manager" enabled="true">
+              <collectionProp name="HeaderManager.headers">
+                <elementProp name="" elementType="Header">
+                  <stringProp name="Header.name">User-Agent</stringProp>
+                  <stringProp name="Header.value">ApacheJMeter</stringProp>
+                </elementProp>
+                <elementProp name="" elementType="Header">
+                  <stringProp name="Header.name">Content-Type</stringProp>
+                  <stringProp name="Header.value">${contentType}</stringProp>
+                </elementProp>
+                <elementProp name="" elementType="Header">
+                  <stringProp name="Header.name">X-Source</stringProp>
+                  <stringProp name="Header.value">PSDOA-JMeter-LoadTest</stringProp>
+                </elementProp>
+                <elementProp name="" elementType="Header">
+                    <stringProp name="Header.name">X-Test-ID</stringProp>
+                    <stringProp name="Header.value">${__UUID()}</stringProp>
+                </elementProp>
+              </collectionProp>
+            </HeaderManager>
+            <hashTree/>
+          </hashTree>
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="AMT Adapter Auction Request Returning Bids for One Imp 2" enabled="true">
+            <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+            <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+              <collectionProp name="Arguments.arguments">
+                <elementProp name="" elementType="HTTPArgument">
+                  <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                  <stringProp name="Argument.value">{&#xd;
+    &quot;id&quot;: &quot;${__UUID()}&quot;,&#xd;
+    &quot;imp&quot;: [&#xd;
+        {&quot;id&quot;: &quot;imp_id_1&quot;,&#xd;
+         &quot;banner&quot;: {&quot;w&quot;: 300, &quot;h&quot;: 250},&#xd;
+         &quot;ext&quot;: {&#xd;
+             &quot;amt&quot;: {&#xd;
+                 &quot;placementId&quot;: &quot;dsdasf&quot;,&#xd;
+                 &quot;bidFloor&quot;: 100,&#xd;
+                 &quot;bidCeiling&quot;: 100000&#xd;
+             }&#xd;
+         }&#xd;
+         },&#xd;
+        {&#xd;
+            &quot;id&quot;: &quot;imp_id_2&quot;,&#xd;
+            &quot;banner&quot;: {&quot;w&quot;: 300, &quot;h&quot;: 250},&#xd;
+            &quot;ext&quot;: {&#xd;
+                &quot;amt&quot;: {&#xd;
+                    &quot;placementId&quot;: &quot;dsdasfdsa&quot;,&#xd;
+                    &quot;bidFloor&quot;: 1,&#xd;
+                    &quot;bidCeiling&quot;: 50&#xd;
+                }&#xd;
+            }&#xd;
+        }&#xd;
+    ],&#xd;
+    &quot;device&quot;: {&#xd;
+        &quot;pxratio&quot;: 4.2,&#xd;
+        &quot;dnt&quot;: 2,&#xd;
+        &quot;language&quot;: &quot;en&quot;,&#xd;
+        &quot;ifa&quot;: &quot;ifaId&quot;&#xd;
+    },&#xd;
+    &quot;site&quot;: {&#xd;
+        &quot;page&quot;: &quot;prebid.org&quot;,&#xd;
+        &quot;publisher&quot;: {&#xd;
+            &quot;id&quot;: &quot;publisherId&quot;&#xd;
+        }&#xd;
+    },&#xd;
+    &quot;at&quot;: 1,&#xd;
+    &quot;tmax&quot;: 5000,&#xd;
+    &quot;cur&quot;: [&#xd;
+        &quot;USD&quot;&#xd;
+    ],&#xd;
+    &quot;source&quot;: {&#xd;
+        &quot;fd&quot;: 1,&#xd;
+        &quot;tid&quot;: &quot;tid&quot;&#xd;
+    },&#xd;
+    &quot;ext&quot;: {&#xd;
+        &quot;prebid&quot;: {&#xd;
+            &quot;targeting&quot;: {&#xd;
+                &quot;pricegranularity&quot;: {&#xd;
+                    &quot;precision&quot;: 2,&#xd;
+                    &quot;ranges&quot;: [&#xd;
+                        {&#xd;
+                            &quot;max&quot;: 20,&#xd;
+                            &quot;increment&quot;: 0.1&#xd;
+                        }&#xd;
+                    ]&#xd;
+                }&#xd;
+            },&#xd;
+            &quot;cache&quot;: {&#xd;
+                &quot;bids&quot;: {}&#xd;
+            },&#xd;
+            &quot;auctiontimestamp&quot;: 1000&#xd;
+        }&#xd;
+    },&#xd;
+    &quot;regs&quot;: {&quot;ext&quot;: {&quot;gdpr&quot;: 0}}&#xd;
+}</stringProp>
+                  <stringProp name="Argument.metadata">=</stringProp>
+                </elementProp>
+              </collectionProp>
+            </elementProp>
+            <stringProp name="HTTPSampler.path">${url}/openrtb2/auction</stringProp>
+            <stringProp name="HTTPSampler.method">${auctionMethod}</stringProp>
+            <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+            <boolProp name="HTTPSampler.auto_redirects">false</boolProp>
+            <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+            <boolProp name="HTTPSampler.DO_MULTIPART_POST">false</boolProp>
+            <boolProp name="HTTPSampler.BROWSER_COMPATIBLE_MULTIPART">false</boolProp>
+            <boolProp name="HTTPSampler.image_parser">false</boolProp>
+            <boolProp name="HTTPSampler.concurrentDwn">false</boolProp>
+            <stringProp name="HTTPSampler.concurrentPool">6</stringProp>
+            <boolProp name="HTTPSampler.md5">false</boolProp>
+            <intProp name="HTTPSampler.ipSourceType">0</intProp>
+          </HTTPSamplerProxy>
+          <hashTree>
+            <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="HTTP Header Manager" enabled="true">
+              <collectionProp name="HeaderManager.headers">
+                <elementProp name="" elementType="Header">
+                  <stringProp name="Header.name">User-Agent</stringProp>
+                  <stringProp name="Header.value">ApacheJMeter</stringProp>
+                </elementProp>
+                <elementProp name="" elementType="Header">
+                  <stringProp name="Header.name">Content-Type</stringProp>
+                  <stringProp name="Header.value">${contentType}</stringProp>
+                </elementProp>
+                <elementProp name="" elementType="Header">
+                  <stringProp name="Header.name">X-Source</stringProp>
+                  <stringProp name="Header.value">PSDOA-JMeter-LoadTest</stringProp>
+                </elementProp>
+                <elementProp name="" elementType="Header">
+                    <stringProp name="Header.name">X-Test-ID</stringProp>
+                    <stringProp name="Header.value">${__UUID()}</stringProp>
+                </elementProp>
+              </collectionProp>
+            </HeaderManager>
+            <hashTree/>
+          </hashTree>
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="AMT Adapter Auction Request Returning Bids for Two Imp 2" enabled="true">
+            <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+            <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+              <collectionProp name="Arguments.arguments">
+                <elementProp name="" elementType="HTTPArgument">
+                  <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                  <stringProp name="Argument.value">{&#xd;
+    &quot;id&quot;: &quot;${__UUID()}&quot;,&#xd;
+    &quot;imp&quot;: [&#xd;
+        {&quot;id&quot;: &quot;imp_id_1&quot;,&#xd;
+         &quot;banner&quot;: {&quot;w&quot;: 300, &quot;h&quot;: 250},&#xd;
+         &quot;ext&quot;: {&#xd;
+             &quot;amt&quot;: {&#xd;
+                 &quot;placementId&quot;: &quot;dsdasf&quot;,&#xd;
+                 &quot;bidFloor&quot;: 1,&#xd;
+                 &quot;bidCeiling&quot;: 100000&#xd;
+             }&#xd;
+         }&#xd;
+         },&#xd;
+        {&#xd;
+            &quot;id&quot;: &quot;imp_id_2&quot;,&#xd;
+            &quot;banner&quot;: {&quot;w&quot;: 300, &quot;h&quot;: 250},&#xd;
+            &quot;ext&quot;: {&#xd;
+                &quot;amt&quot;: {&#xd;
+                    &quot;placementId&quot;: &quot;dsdasfdsa&quot;,&#xd;
+                    &quot;bidFloor&quot;: 1,&#xd;
+                    &quot;bidCeiling&quot;: 50&#xd;
+                }&#xd;
+            }&#xd;
+        }&#xd;
+    ],&#xd;
+    &quot;device&quot;: {&#xd;
+        &quot;pxratio&quot;: 4.2,&#xd;
+        &quot;dnt&quot;: 2,&#xd;
+        &quot;language&quot;: &quot;en&quot;,&#xd;
+        &quot;ifa&quot;: &quot;ifaId&quot;&#xd;
+    },&#xd;
+    &quot;site&quot;: {&#xd;
+        &quot;page&quot;: &quot;prebid.org&quot;,&#xd;
+        &quot;publisher&quot;: {&#xd;
+            &quot;id&quot;: &quot;publisherId&quot;&#xd;
+        }&#xd;
+    },&#xd;
+    &quot;at&quot;: 1,&#xd;
+    &quot;tmax&quot;: 5000,&#xd;
+    &quot;cur&quot;: [&#xd;
+        &quot;USD&quot;&#xd;
+    ],&#xd;
+    &quot;source&quot;: {&#xd;
+        &quot;fd&quot;: 1,&#xd;
+        &quot;tid&quot;: &quot;tid&quot;&#xd;
+    },&#xd;
+    &quot;ext&quot;: {&#xd;
+        &quot;prebid&quot;: {&#xd;
+            &quot;targeting&quot;: {&#xd;
+                &quot;pricegranularity&quot;: {&#xd;
+                    &quot;precision&quot;: 2,&#xd;
+                    &quot;ranges&quot;: [&#xd;
+                        {&#xd;
+                            &quot;max&quot;: 20,&#xd;
+                            &quot;increment&quot;: 0.1&#xd;
+                        }&#xd;
+                    ]&#xd;
+                }&#xd;
+            },&#xd;
+            &quot;cache&quot;: {&#xd;
+                &quot;bids&quot;: {}&#xd;
+            },&#xd;
+            &quot;auctiontimestamp&quot;: 1000&#xd;
+        }&#xd;
+    },&#xd;
+    &quot;regs&quot;: {&quot;ext&quot;: {&quot;gdpr&quot;: 0}}&#xd;
+}</stringProp>
+                  <stringProp name="Argument.metadata">=</stringProp>
+                </elementProp>
+              </collectionProp>
+            </elementProp>
+            <stringProp name="HTTPSampler.path">${url}/openrtb2/auction</stringProp>
+            <stringProp name="HTTPSampler.method">${auctionMethod}</stringProp>
+            <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+            <boolProp name="HTTPSampler.auto_redirects">false</boolProp>
+            <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+            <boolProp name="HTTPSampler.DO_MULTIPART_POST">false</boolProp>
+            <boolProp name="HTTPSampler.BROWSER_COMPATIBLE_MULTIPART">false</boolProp>
+            <boolProp name="HTTPSampler.image_parser">false</boolProp>
+            <boolProp name="HTTPSampler.concurrentDwn">false</boolProp>
+            <stringProp name="HTTPSampler.concurrentPool">6</stringProp>
+            <boolProp name="HTTPSampler.md5">false</boolProp>
+            <intProp name="HTTPSampler.ipSourceType">0</intProp>
+          </HTTPSamplerProxy>
+          <hashTree>
+            <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="HTTP Header Manager" enabled="true">
+              <collectionProp name="HeaderManager.headers">
+                <elementProp name="" elementType="Header">
+                  <stringProp name="Header.name">User-Agent</stringProp>
+                  <stringProp name="Header.value">ApacheJMeter</stringProp>
+                </elementProp>
+                <elementProp name="" elementType="Header">
+                  <stringProp name="Header.name">Content-Type</stringProp>
+                  <stringProp name="Header.value">${contentType}</stringProp>
+                </elementProp>
+                <elementProp name="" elementType="Header">
+                  <stringProp name="Header.name">X-Source</stringProp>
+                  <stringProp name="Header.value">PSDOA-JMeter-LoadTest</stringProp>
+                </elementProp>
+                <elementProp name="" elementType="Header">
+                    <stringProp name="Header.name">X-Test-ID</stringProp>
+                    <stringProp name="Header.value">${__UUID()}</stringProp>
+                </elementProp>
+              </collectionProp>
+            </HeaderManager>
+            <hashTree/>
+          </hashTree>
+        </hashTree>
+      </hashTree>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>
