@@ -42,6 +42,8 @@ class CloudFrontEntryDeployment(Construct):
             cache_lambda_name,
             elasticache_cluster_id,
             operational_metrics_layer,
+            simulator_endpoint=None,
+            enable_log_analytics=False,
     ) -> None:
         """
         This construct creates resources needed for the user to use CloudFront as their CDN.
@@ -61,7 +63,9 @@ class CloudFrontEntryDeployment(Construct):
         ecs_task_construct = ECSTaskConstruct(self, "ECSTask", image_ecs_obj, efs_construct.prebid_fs,
                                               efs_construct.prebid_fs_access_point,
                                               docker_configs_manager_bucket,
-                                              stored_requests_bucket)
+                                              stored_requests_bucket,
+                                              simulator_endpoint=simulator_endpoint,
+                                              enable_analytics=enable_log_analytics)
 
         # ALB security group
         alb_sec_group = ec2.SecurityGroup(self, "Prebid-ALB-security-group", vpc=prebid_vpc)  # NOSONAR
@@ -116,13 +120,15 @@ class CloudFrontEntryDeployment(Construct):
                                                     ecs_task_construct.prebid_container,
                                                     efs_construct.prebid_fs)
 
-        ecs_task_construct.prebid_container.add_environment(
-            name="CACHE_HOST",
-            value=ecs_service_construct.internal_prebid_alb.load_balancer_dns_name
-        )
-
         # Create CloudFront and WAF resources, and prefix list id.
         cloudfront_waf_construct = CloudFrontWafConstruct(self, "CloudFrontWaf", prebid_alb, x_header_secret_value)
+
+        # Set CACHE_HOST to CloudFront domain so cache URLs in bid responses
+        # point to the public CloudFront endpoint instead of the internal ALB
+        ecs_task_construct.prebid_container.add_environment(
+            name="CACHE_HOST",
+            value=cloudfront_waf_construct.prebid_cloudfront_distribution.domain_name
+        )
 
         # Create a rule for the HTTP listener in the ALB that forwards incoming requests to the prebid cluster.
         # After the rule is configured, the Fargate service running on the prebid cluster is fronted by the ALB.
@@ -154,7 +160,6 @@ class CloudFrontEntryDeployment(Construct):
                 elbv2.ListenerCondition.http_header(
                     stack_constants.X_SECRET_HEADER_NAME, [x_header_secret_value]
                 ),
-                elbv2.ListenerCondition.http_request_methods(["GET"])
             ],
             action=elbv2.ListenerAction.forward([lambda_target_external_cf]),
         )

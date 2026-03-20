@@ -12,7 +12,10 @@
 # -------------------------------------------------------------------------------------------------------------------------------------------------------
 
 # Build stage
-FROM public.ecr.aws/docker/library/alpine:3.22.1 AS build
+FROM public.ecr.aws/docker/library/alpine:3.23.3 AS build
+
+# Build argument to control AMT bidder file inclusion
+ARG INCLUDE_AMT_BIDDER=false
 
 # Install required dependencies
 RUN wget -O /etc/apk/keys/amazoncorretto.rsa.pub https://apk.corretto.aws/amazoncorretto.rsa.pub && \
@@ -20,7 +23,7 @@ RUN wget -O /etc/apk/keys/amazoncorretto.rsa.pub https://apk.corretto.aws/amazon
     apk update && \
     apk add --no-cache \
         amazon-corretto-21 \
-        maven=3.9.9-r0 \
+        maven=3.9.11-r0 \
         git \
         jq \
         binutils \
@@ -46,6 +49,9 @@ COPY docker-build-config.json docker-build-config.json
 # Copy extra-modules
 COPY extra-modules extra-modules/
 
+# Copy amt-bidder
+COPY amt-bidder amt-bidder/
+
 # Clone and build in single layer to reduce size
 RUN git clone --single-branch --branch master --depth 1 $(jq -r .GIT_REPO_URL ./docker-build-config.json) && \
     cd prebid-server-java && \
@@ -56,11 +62,16 @@ RUN git clone --single-branch --branch master --depth 1 $(jq -r .GIT_REPO_URL ./
     cp -rv ../extra-modules/log-module-reporter/config/* src/main/java/org/prebid/server/spring/config/ && \
     mkdir -p /src/test/java/org/prebid/server/analytics/reporter/psdoa/ && \
     cp -rv ../extra-modules/log-module-reporter/test/PsdoaAnalyticsReporterTest.java /src/test/java/org/prebid/server/analytics/reporter/psdoa/ && \
+    if [ "$INCLUDE_AMT_BIDDER" = "true" ]; then \
+        cp -r ../amt-bidder . && \
+        chmod +x ../amt-bidder/copy-bidder-files.sh && \
+        ../amt-bidder/copy-bidder-files.sh ; \
+    fi && \
     mvn clean package $(jq -r .MVN_CLI_OPTIONS ../docker-build-config.json) && \
     rm -rf ~/.m2/ && rm -rf /tmp/*
 
 # Deploy image
-FROM public.ecr.aws/docker/library/alpine:3.22.1 AS deploy
+FROM public.ecr.aws/docker/library/alpine:3.23.3 AS deploy
 WORKDIR /prebid-server-java
 
 # Copy only the minimal required files

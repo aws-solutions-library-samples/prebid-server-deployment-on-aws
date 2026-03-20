@@ -6,7 +6,7 @@
         {
           "id": "banner_bid_1",
           "impid": "banner_imp_1",
-          "price": 6.5,
+          "price": 3.25,
           "crid": "banner_creative_1",
           "adm": "<a href=\"https://www.amazon.com/Amazon-Autos/b/ref=glow_cls?ie=UTF8&node=10677469011\" target=\"_blank\"><img src=\"https://d3pacy25eokw7j.cloudfront.net/banners/CarAd-4.jpg\" width=\"300\" height=\"250\"></a>",
           "adomain": [
@@ -18,7 +18,7 @@
         {
           "id": "banner_bid_2",
           "impid": "banner_imp_2",
-          "price": 5.55,
+          "price": 2.75,
           "crid": "banner_creative_2",
           "adm": "<iframe src='https://d3pacy25eokw7j.cloudfront.net/banners/Soccer.jpeg' width='300' height='250'></iframe>",
           "adomain": [
@@ -30,7 +30,7 @@
         {
           "id": "outstream_video_bid_1",
           "impid": "outstream_video_imp_1",
-          "price": 65,
+          "price": 12.50,
           "crid": "outstream_video_creative_1",
           "adm": "<VAST version='3.0'><Ad id='12345'><InLine><AdSystem>Test Ad System</AdSystem><AdTitle>Basic Outstream</AdTitle><Impression><![CDATA[https://zp7n3f03f3.execute-api.us-east-1.amazonaws.com/prod/impression?adid=12345]]></Impression><Creatives><Creative><Linear><Duration>00:00:05</Duration><VideoClicks><ClickThrough><![CDATA[https://www.amazon.com]]></ClickThrough></VideoClicks><MediaFiles><MediaFile delivery='progressive' type='video/mp4' width='360' height='360' bitrate='500'><![CDATA[https://d3pacy25eokw7j.cloudfront.net/videos/outstream/creative_2_360x360_20s.mp4]]></MediaFile></MediaFiles></Linear></Creative></Creatives></InLine></Ad></VAST>",
           "adomain": [
@@ -42,7 +42,7 @@
         {
           "id": "instream_video_bid_1",
           "impid": "instream_video_imp_1",
-          "price": 650,
+          "price": 22.50,
           "crid": "instream_video_creative_1",
           "adm": "<VAST version='3.0'><Ad id='67890'><InLine><AdSystem>Test Ad System</AdSystem><AdTitle>Basic Instream</AdTitle><Impression><![CDATA[https://zp7n3f03f3.execute-api.us-east-1.amazonaws.com/prod/impression?adid=7890]]></Impression><Creatives><Creative><Linear><Duration>00:00:05</Duration><VideoClicks><ClickThrough><![CDATA[https://www.amazon.com]]></ClickThrough></VideoClicks><MediaFiles><MediaFile delivery='progressive' type='video/mp4' width='360' height='360' bitrate='500'><![CDATA[https://d3pacy25eokw7j.cloudfront.net/videos/outstream/20250317_1119_Beekeeper_Harmony.mp4]]></MediaFile></MediaFiles></Linear></Creative></Creatives></InLine></Ad></VAST>",
           "adomain": [

@@ -8,13 +8,15 @@ from aws_cdk import (
     Aws,
     CfnCondition,
     CfnOutput,
+    CfnResource,
     CustomResource,
     Duration,
     Fn,
     RemovalPolicy,
     aws_ecs as ecs,
     aws_lambda as awslambda,
-    aws_s3 as s3
+    aws_s3 as s3,
+    aws_ec2 as ec2,
 )
 from aws_cdk.aws_lambda import LayerVersion, Code, Runtime
 from aws_cdk import aws_iam as iam
@@ -36,6 +38,8 @@ from .prebid_glue_constructs import GlueEtl
 from .cloudtrail_construct import CloudTrailConstruct
 from .cache_construct import CacheConstruct
 from .stack_cfn_parameters import StackParams
+from .rtb_fabric_construct import RtbFabricConstruct
+from .vpc_peering_construct import VpcPeeringConstruct
 
 
 class PrebidServerStack(SolutionStack):
@@ -43,7 +47,7 @@ class PrebidServerStack(SolutionStack):
     description = "Guidance for Deploying a Prebid Server on AWS"
     template_filename = "prebid-server-deployment-on-aws.template"
 
-    def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
+    def __init__(self, scope: Construct, construct_id: str, simulator_endpoint=None, enable_log_analytics=False, include_rtb_fabric=False, responder_gateway_id=None, bidder_simulator_vpc_id=None, bidder_simulator_alb_sg_id=None, bidder_simulator_route_table_ids=None, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
         self.synthesizer.bind(self)
 
@@ -67,8 +71,11 @@ class PrebidServerStack(SolutionStack):
         # Create bucket for storing prebid application settings
         stored_requests_bucket = self.create_stored_requests_bucket()
 
+        # Determine if bidder simulator is deployed based on simulator_endpoint or RTB Fabric
+        deploy_bidding_simulator = simulator_endpoint is not None or include_rtb_fabric
+
         container_image_construct = ContainerImageConstruct(self, "ContainerImage", self.solutions_template_options,
-                                                            stored_requests_bucket)
+                                                            stored_requests_bucket, deploy_bidding_simulator)
 
         # Create artifacts resources for storing solution files
         artifacts_construct = ArtifactsManager(self, "Artifacts")
@@ -77,6 +84,26 @@ class PrebidServerStack(SolutionStack):
                                      artifacts_construct.artifacts_bucket,
                                      container_image_construct.docker_configs_manager_bucket,
                                      stored_requests_bucket)
+
+        # Conditionally create RTB Fabric Requester Gateway
+        # This must be created before ECS tasks so the gateway can be referenced
+        # in the task configuration if RTB Fabric is enabled
+        rtb_fabric = None
+        if include_rtb_fabric:
+            rtb_fabric = RtbFabricConstruct(self, "RtbFabric", vpc_construct, responder_gateway_id)
+        
+        # Conditionally create VPC peering connection (when RTB Fabric is disabled)
+        # This enables Prebid Server to reach Bidder Simulator through VPC peering
+        if not include_rtb_fabric and deploy_bidding_simulator:
+            VpcPeeringConstruct(self, "VpcPeering", vpc_construct, bidder_simulator_vpc_id, bidder_simulator_alb_sg_id, bidder_simulator_route_table_ids)
+        
+        # Overwrite simulator_endpoint with Fabric Link URL if RTB Fabric is enabled
+        # Format: https://{requester-gateway-domain-name}/link/{link-id}
+        # This allows ECS tasks to route traffic through RTB Fabric instead of directly to the bidder simulator
+        if rtb_fabric and hasattr(rtb_fabric, 'fabric_link'):
+            requester_gateway_domain = rtb_fabric.requester_gateway.attr_domain_name
+            link_id = rtb_fabric.fabric_link.attr_link_id
+            simulator_endpoint = f"https://{requester_gateway_domain}/link/{link_id}"
 
         # Create ECS Cluster
         prebid_cluster = ecs.Cluster(
@@ -190,7 +217,7 @@ class PrebidServerStack(SolutionStack):
 
         # Deploy CloudFrontEntryDeployment construct when the user selects the option to use CloudFront as their content delivery network (CDN).
         # In this case, WAF resources are deployed along with CloudFront.
-        CloudFrontEntryDeployment(
+        self.cloudfront_entry = CloudFrontEntryDeployment(
             self,
             "CloudFrontEntryDeployment",
             stack_params,
@@ -208,7 +235,9 @@ class PrebidServerStack(SolutionStack):
             stored_requests_bucket,
             cache_construct.cache_lambda_function.function_name,
             elasticache_cluster_id,
-            op_metrics_construct.operational_metrics_layer
+            op_metrics_construct.operational_metrics_layer,
+            simulator_endpoint=simulator_endpoint,
+            enable_log_analytics=enable_log_analytics
         )
 
         # Deploy this construct when the user wants to use their own CDN.
@@ -230,7 +259,9 @@ class PrebidServerStack(SolutionStack):
             stored_requests_bucket,
             cache_construct.cache_lambda_function.function_name,
             elasticache_cluster_id,
-            op_metrics_construct.operational_metrics_layer
+            op_metrics_construct.operational_metrics_layer,
+            simulator_endpoint=simulator_endpoint,
+            enable_log_analytics=enable_log_analytics
         )
 
     def create_access_logs_bucket(self) -> s3.Bucket:

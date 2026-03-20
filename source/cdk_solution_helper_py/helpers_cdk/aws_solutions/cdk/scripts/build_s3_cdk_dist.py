@@ -236,7 +236,7 @@ def source_code_package(ctx, ignore, solution_name):
         "**/*.egg-info",
         "**/__pycache__",
         ".crux_template.md",
-        "loadtest"
+        "**/.venv/*"
     ]
     ignored.extend(ignore)
 
@@ -249,6 +249,8 @@ def source_code_package(ctx, ignore, solution_name):
         "CHANGELOG.md",
         ".gitignore",
         "solution-manifest.yaml",
+        "deploy.sh",
+        "destroy.sh"
     ]
 
     # copy source directory
@@ -301,7 +303,7 @@ def source_code_package(ctx, ignore, solution_name):
     # copy the diagram png from the docs/ folder
     (Path(env.open_source_dir) / "docs").mkdir()
 
-    for copy_file in ["prebid-server-deployment-on-aws.png"]:
+    for copy_file in ["prebid-server-deployment-on-aws.png","prebid-server-deployment-on-aws-log-analytics.png"]:
         try:
             shutil.copyfile(
                 Path(env.source_dir).parent / "docs" / copy_file,
@@ -311,21 +313,9 @@ def source_code_package(ctx, ignore, solution_name):
             raise click.ClickException(
                 f"The solution is missing docs/{copy_file}"
             )
-        
-    # copy the loadtest files
-    (Path(env.open_source_dir) / "source" / "loadtest").mkdir()
-    (Path(env.open_source_dir) / "source" / "loadtest" / "jmx").mkdir()
 
-    for copy_file in ["prebid_server_test_plan.jmx", "README.md", ".gitignore"]:
-        try:
-            shutil.copyfile(
-                Path(env.source_dir) / "loadtest" / "jmx" / copy_file,
-                Path(env.open_source_dir) / "source" / "loadtest" / "jmx" / copy_file,
-            )
-        except FileNotFoundError:
-            raise click.ClickException(
-                f"The solution is missing source/loadtest/jmx/{copy_file}"
-            )
+    # The entire loadtest directory is now included automatically via source directory copy
+    # since "loadtest" was removed from the ignored directories list above
 
     shutil.make_archive(
         base_name=os.path.join(env.template_dir, solution_name),

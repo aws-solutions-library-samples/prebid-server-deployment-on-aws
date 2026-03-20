@@ -39,7 +39,9 @@ class ALBEntryDeployment(Construct):
             stored_requests_bucket,
             cache_lambda_name,
             elasticache_cluster_id,
-            operational_metrics_layer
+            operational_metrics_layer,
+            simulator_endpoint=None,
+            enable_log_analytics=False,
     ) -> None:
         """
         This construct creates resources needed for the user to use a different CDN.
@@ -60,7 +62,9 @@ class ALBEntryDeployment(Construct):
         ecs_task_construct = ECSTaskConstruct(self, "ECSTask", image_ecs_obj, efs_construct.prebid_fs,
                                               efs_construct.prebid_fs_access_point,
                                               docker_configs_manager_bucket,
-                                              stored_requests_bucket)
+                                              stored_requests_bucket,
+                                              simulator_endpoint=simulator_endpoint,
+                                              enable_analytics=enable_log_analytics)
 
         # ALB security group
         alb_sec_group = ec2.SecurityGroup(self, "Prebid-ALB-security-group", vpc=prebid_vpc)  # NOSONAR

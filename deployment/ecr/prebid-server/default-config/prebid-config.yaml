@@ -20,13 +20,15 @@ adapters:
     enabled: true
   rubicon:
     enabled: true
+  amt:
+    enabled: ${AMT_ADAPTER_ENABLED}
 metrics:
   logback:
     enabled: true
     name: METRICS
     interval: 30
 cache:
-  scheme: http
+  scheme: https
   host: ${CACHE_HOST}
   path: /cache
   query: uuid=
@@ -68,4 +70,4 @@ analytics:
   global:
     adapters: "psdoaAnalytics"
   psdoa:
-    enabled: false
+    enabled: ${LOG_ANALYTICS_ENABLED}

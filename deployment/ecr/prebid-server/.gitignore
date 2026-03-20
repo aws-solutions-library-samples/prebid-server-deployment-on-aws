@@ -1,7 +1,10 @@
 /logs/*
 /metrics/*
+/analytics/*
 bootstrap.log
 sample/configs/prebid-config.yaml
 .env
 nw-current-config/
-amt-bidder/
+# Ignore AMT bidder files but keep directory structure
+amt-bidder/*
+!amt-bidder/.gitkeep

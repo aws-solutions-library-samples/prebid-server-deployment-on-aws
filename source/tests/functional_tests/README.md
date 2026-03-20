@@ -26,7 +26,12 @@ cd source/tests/functional_tests
 * `-v | --verbose`:    Print script debug info
 
 #### Test Histogram table
-* Follow instructions in [Load-Test README.MD](../../../source/loadtest/README.md)
-* Histogram test requires a load test of a deployed prebid-server stack with `AMT_ADAPTER_ENABLED` and `AMT_BIDDING_SERVER_SIMULATOR_ENDPOINT` running.
+* The histogram test requires a load test of a deployed prebid-server stack with the AMT adapter enabled.
+* To enable the AMT adapter, deploy the solution with the `deployBiddingSimulator` context flag:
+  ```bash
+  cdk deploy --all --context deployBiddingSimulator=true
+  ```
+* This automatically deploys the bidder simulator and configures the AMT adapter with the correct environment variables (`AMT_ADAPTER_ENABLED` and `AMT_BIDDING_SERVER_SIMULATOR_ENDPOINT`).
+* For other configuration instructions, see the [Load-Test README.MD](../../../source/loadtest/README.md).
 
 
