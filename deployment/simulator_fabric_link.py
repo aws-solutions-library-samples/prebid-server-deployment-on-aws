@@ -64,10 +64,35 @@ def backoff_interval(attempt: int) -> int:
     return min(INITIAL_INTERVAL * (MULTIPLIER ** attempt), MAX_INTERVAL)
 
 
-def poll_until(check_fn, success_states: set, failure_states: set, label: str) -> str:
-    """Poll check_fn() until status is in success_states or timeout."""
+# Number of CONSECUTIVE None (link-not-found) polls tolerated before treating
+# the link as gone, when terminal_on_none is set (create path only). A single
+# None is normal early in create (the link has not appeared in list-links yet),
+# so we only fail fast once None persists across this many polls.
+NONE_GRACE_POLLS = 3
+
+
+def poll_until(
+    check_fn,
+    success_states: set,
+    failure_states: set,
+    label: str,
+    terminal_on_none: bool = False,
+) -> str:
+    """Poll check_fn() until status is in success_states or timeout.
+
+    When terminal_on_none is True (used on the create path, where the link is
+    expected to exist and progress toward ACTIVE), a status of None means the
+    link was not found. A single None is tolerated as a normal early-create
+    transient, but None persisting for NONE_GRACE_POLLS consecutive polls is
+    treated as a terminal failure (the link disappeared / was deleted out from
+    under us) so we fail fast instead of hanging for the full TOTAL_TIMEOUT.
+
+    The delete path leaves terminal_on_none False and maps None -> "DELETED" in
+    its check_fn, so this guard does not affect deletion.
+    """
     elapsed = 0
     attempt = 0
+    consecutive_none = 0
     while elapsed < TOTAL_TIMEOUT:
         status = check_fn()
         interval = backoff_interval(attempt)
@@ -77,6 +102,16 @@ def poll_until(check_fn, success_states: set, failure_states: set, label: str) -
         if status in failure_states:
             error(f"Link entered {status} state")
             sys.exit(1)
+        if terminal_on_none and status is None:
+            consecutive_none += 1
+            if consecutive_none >= NONE_GRACE_POLLS:
+                error(
+                    f"Link not found for {consecutive_none} consecutive polls "
+                    f"(status=None); it appears to have been deleted. Failing fast."
+                )
+                sys.exit(1)
+        else:
+            consecutive_none = 0
         time.sleep(interval)
         elapsed += interval
         attempt += 1
@@ -361,8 +396,10 @@ def do_create(args):
             link_status = poll_until(
                 check_status,
                 success_states={"REQUESTED", "ACCEPTED", "ACTIVE"},
+                # create path: a link that vanishes mid-poll should fail fast.
                 failure_states={"FAILED", "REJECTED"},
                 label="Poll",
+                terminal_on_none=True,
             )
 
         # Step 5: Accept the link (skip if already ACCEPTED/ACTIVE)
@@ -382,8 +419,10 @@ def do_create(args):
             link_status = poll_until(
                 check_active,
                 success_states={"ACTIVE"},
+                # create path: a link that vanishes mid-poll should fail fast.
                 failure_states={"FAILED", "REJECTED"},
                 label="Post-accept",
+                terminal_on_none=True,
             )
 
     info("Fabric Link is ACTIVE")

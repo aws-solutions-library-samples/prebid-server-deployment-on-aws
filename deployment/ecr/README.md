@@ -1,17 +1,30 @@
 ### Building Prebid Server Locally
 
+The container image supports two bases. Use the `build-image.sh` helper to select one with `--base`:
+
 ```bash
-cd ./deployment/ecr/prebid-server
-docker build --no-cache -t prebid-server .
+cd ./deployment/ecr
+./build-image.sh --base al2023   # default; Amazon Linux 2023
+./build-image.sh --base alpine   # jlink-tuned Alpine (size-optimized)
 ```
 
+`build-image.sh` resolves `Dockerfile.<base>` from `prebid-server/docker-build-config.json`, validates `--base` against the closed set `{al2023, alpine}` (defaulting to `al2023` when unset), and fails non-zero on an unsupported value. See [prebid-server/README.md](prebid-server/README.md) for the base-image tradeoffs and size comparison.
+
+### Base image selection and tradeoffs
+
+| Base | Flag | Base images | Notes |
+|---|---|---|---|
+| Amazon Linux 2023 | `--base al2023` (default) | `amazoncorretto:21-al2023` → `amazonlinux:2023-minimal` | Default; larger image, glibc/dnf ecosystem alignment. |
+| Alpine (jlink-tuned) | `--base alpine` | `alpine:3.23.3` | `jlink` custom-JRE tuning + `apk upgrade zlib musl musl-utils` CVE fix; size-optimized. |
+
+Measured sizes (linux/amd64 deploy target): Alpine ≈ 351 MiB, AL2023 ≈ 547 MiB (Alpine is ~36% smaller).
 
 ### Prebid Server Version and Docker Config
-You can update `prebid-server-java` git tag release in `deployment/ecr/prebid-server/docker-build-config.json`. The tag must match exactly the tag on the source GitHub repository `https://github.com/prebid/prebid-server-java/tags`. After changing the tag value, run:
+You can update `prebid-server-java` git tag release in `deployment/ecr/prebid-server/docker-build-config.json`. The tag must match exactly the tag on the source GitHub repository `https://github.com/prebid/prebid-server-java/tags`. After changing the tag value, rebuild the image:
 
 ```bash
-cd ./deployment/ecr/prebid-server
-docker build --no-cache -t prebid-server .
+cd ./deployment/ecr
+./build-image.sh --base al2023   # or --base alpine
 ```
 
 You can rebuild the entire stack with the new Prebid Server version using instructions in the main `README.md`.

@@ -1,0 +1,13 @@
+# Source TypeScript (compiled output is in dist/)
+lib/
+app.ts
+
+# Build artifacts
+node_modules/
+dist/app.*
+cdk.out/
+
+# Config and docs
+tsconfig.json
+cdk.json
+docs/

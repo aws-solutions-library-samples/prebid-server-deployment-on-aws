@@ -1,25 +1,37 @@
-# Prebid Server Docker Build Context
+# Prebid Server Container Image
 
-## Directory Structure
+This directory holds the Docker build context for the Prebid Server container image, including the two supported Dockerfiles and the `docker-build-config.json` selection contract.
 
-| Directory | Purpose | Deployed To |
-|-----------|---------|-------------|
-| `default-config/` | Baseline PBS config (YAML, logging, entrypoint) | S3 → container at startup |
-| `current-config/` | Custom config overrides (precedence over default) | S3 → container at startup |
-| `stored_requests/` | Stored request templates | S3 stored requests bucket |
-| `stored_impressions/` | Stored impression templates | S3 stored requests bucket |
-| `stored_responses/` | Static bid responses for testing | S3 stored requests bucket |
-| `stored_accounts/` | Publisher account settings | S3 stored requests bucket |
-| `amt-bidder/` | AMT adapter source (populated by deploy script) | Docker image at build time |
-| `extra-modules/` | Custom PBS modules (analytics) | Docker image at build time |
+## Base image selection
 
-All `stored_*` directories are uploaded to S3 on deploy via a Lambda custom resource. PBS reads from S3 with a 15-minute in-memory cache refresh. See the README in each directory for details.
+The image can be built from two bases. Select one with the `--base` flag on `deployment/ecr/build-image.sh`:
 
-For Prebid Server configuration reference, see the [PBS Java documentation](https://github.com/prebid/prebid-server-java/blob/master/docs/application-settings.md).
+| Base | Flag | Dockerfile | Base images | Notes |
+|---|---|---|---|---|
+| Amazon Linux 2023 | `--base al2023` (**default**) | `Dockerfile.al2023` | `amazoncorretto:21-al2023` → `amazonlinux:2023-minimal` | Default. Larger image; glibc/dnf ecosystem alignment. |
+| Alpine (jlink-tuned) | `--base alpine` | `Dockerfile.alpine` | `alpine:3.23.3` | Retains the `jlink` custom-JRE tuning (`--strip-debug`, `--no-man-pages`, `--no-header-files`, `--compress=2`) and the `apk upgrade zlib musl musl-utils` CVE fix. Size-optimized. |
+
+The closed set of bases (`{al2023, alpine}`), the default (`al2023`), and the base→Dockerfile mapping are defined in `docker-build-config.json`. `build-image.sh` validates `--base` against that set before invoking the container runtime and fails non-zero on an unsupported value. Both paths honor the `INCLUDE_AMT_BIDDER` build arg.
+
+```bash
+cd deployment/ecr
+./build-image.sh --base al2023   # default
+./build-image.sh --base alpine
+```
+
+### Size comparison and tradeoff (linux/amd64 deploy target)
+
+| Base | Size | Relative |
+|---|---|---|
+| Alpine (jlink-tuned) | ≈ 351 MiB (368,459,776 bytes) | ~36% smaller |
+| AL2023 | ≈ 547 MiB (573,870,080 bytes) | ~1.56× the Alpine size |
+
+Sizes measured with `finch image inspect --format '{{.Size}}'`; absolute difference ≈ 196 MiB. The jlink-tuned Alpine base is the size-optimized path; AL2023 is the larger, default base with the glibc/dnf alignment many teams prefer.
 
 ## AMT Bidder Directory
 
-The `amt-bidder/` directory is intentionally empty in version control.
+This directory `amt-bidder` is intentionally maintained as empty in version control.
 
-- **Without bidder simulator**: Leave empty — ensures Docker COPY commands succeed
-- **With bidder simulator**: `./deploy.sh --deploy-bidding-simulator` populates this with adapter source from `source/loadtest/amt-bidder/`
+- **For deployments without bidder simulator**: Leave empty which empty directory ensures Docker COPY commands succeed regardless of deployment type.
+- **For deployments with bidder simulator**: When using `./deploy.sh --deploy-bidding-simulator` the script will populate this directory with the necessary prebid adapter source code files from source/loadtest/amt-bidder
+ 

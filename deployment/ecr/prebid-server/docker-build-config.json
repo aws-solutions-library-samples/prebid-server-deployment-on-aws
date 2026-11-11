@@ -8,5 +8,13 @@
   "_comment_security": "GIT_TAG_VERSION=3.43.0 includes GHSA-4p3g-4hcj-wpvx fix (bidder adapter hostname forgery, Critical 10.0 CVSS) via PR #4522",
   "GIT_TAG_VERSION": "3.43.0",
   "GIT_REPO_URL": "https://github.com/prebid/prebid-server-java",
-  "MVN_CLI_OPTIONS": "-Dmaven.test.skip -Dcheckstyle.skip -Dnetty.version=4.2.13.Final -Dvertx.version=4.5.24 -Dcommons-lang3.version=3.18.0 -Djackson-bom.version=2.21.1 -Dspring-boot.version=3.5.14"
+  "MVN_CLI_OPTIONS": "-Dmaven.test.skip -Dcheckstyle.skip -Dnetty.version=4.2.13.Final -Dvertx.version=4.5.24 -Dcommons-lang3.version=3.18.0 -Djackson-bom.version=2.21.1 -Dspring-boot.version=3.5.14",
+
+  "_comment_base_selection": "Base-image selection contract (Req 3.1/3.2/3.4/3.5). SUPPORTED_BASES is the closed set the build tooling validates --base against; DEFAULT_BASE is used when --base is unset (design FR3.3); BASE_DOCKERFILES maps each base to its Dockerfile in this directory. The build script and container-image-construct.ts resolve Dockerfile.<base> from these keys.",
+  "DEFAULT_BASE": "al2023",
+  "SUPPORTED_BASES": ["al2023", "alpine"],
+  "BASE_DOCKERFILES": {
+    "al2023": "Dockerfile.al2023",
+    "alpine": "Dockerfile.alpine"
+  }
 }

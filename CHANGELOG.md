@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-11-09
+
+### Changed
+- **Migrated the CDK application from Python to TypeScript.** All infrastructure constructs
+  (VPC, ECS Fargate, CloudFront, WAF, EFS, ElastiCache, Glue ETL, DataSync, the metrics data
+  layer, RTB Fabric integration, and the bidder simulator) are now authored in TypeScript CDK.
+  The Python CDK application and its constructs have been removed. This is a breaking change to
+  the build and deployment toolchain and is the reason for the major version bump; the deployed
+  AWS architecture is unchanged.
+- `deploy.sh` now uses the npm/npx CDK toolchain instead of the Python CDK CLI. `destroy.sh` deletes the stacks with the AWS CLI and does not require the CDK toolchain.
+- The cdk-solution-helper post-processor was reimplemented in TypeScript.
+- Reorganized the TypeScript CDK layout to mirror the prior Python folder structure.
+
+### Added
+- AL2023 Dockerfile variant for the Prebid Server container image, selectable via a
+  `--base-image` deploy flag (alongside the existing Alpine base).
+- Operational-metrics Lambda error/throttle CloudWatch alarms (ported with the full CfnResource pattern).
+- `PrebidConfigsManager` wired into the container image construct.
+- Reproducible builds: TypeScript constructs are compiled at build time and `package-lock.json`
+  is committed; jest coverage is emitted as a Cobertura report.
+
+### Security
+- Lambda layer Python dependency CVE floors raised (urllib3, requests, Werkzeug).
+- curl/libcurl upgraded to 8.22.0-r0 and musl upgraded in the container image.
+
+### Build
+- Lambda layer dependencies are pre-installed at build time; Docker bundling for Lambda layers was removed.
+- `.ash` scanner artifacts excluded from the public OSS distribution package.
+
 ## [1.4.0] - 2026-06-09
 
 ### Added

@@ -1,6 +1,6 @@
 id: SO0248
 name: prebid-server-deployment-on-aws
-version: v1.4.0
+version: v2.0.0
 cloudformation_templates:
   - template: prebid-server-deployment-on-aws.template
     main_template: true
