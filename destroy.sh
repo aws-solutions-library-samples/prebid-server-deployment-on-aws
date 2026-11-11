@@ -74,12 +74,13 @@ EXAMPLES:
 
 DESTRUCTION ORDER:
     1. Detect deployed stacks
-    2. Destroy PrebidServerStack (main infrastructure)
-    3. Destroy BidderSimulatorStack (if exists)
+    2. Delete the RTB Fabric Link (if exists), before any stack is destroyed
+    3. Destroy PrebidServerStack (main infrastructure)
+    4. Destroy BidderSimulatorStack (if exists)
     
-    Note: RTB Fabric resources (Fabric Link, Requester Gateway, Responder Gateway)
-    are automatically destroyed as part of their parent stacks due to CloudFormation
-    dependency management.
+    Note: The RTB Fabric Link is managed outside CloudFormation, so it is deleted
+    first with deployment/simulator-fabric-link.sh. The RTB Fabric Requester Gateway
+    and Responder Gateway are destroyed as part of their parent stacks.
 
 EOF
     exit 1
@@ -181,6 +182,8 @@ print_step "Destruction Plan:"
 echo ""
 
 if [ "$PREBID_STACK_EXISTS" = "true" ]; then
+    echo "  0. Delete RTB Fabric Link (if deployed), before stack destruction"
+    echo ""
     echo "  1. Destroy $PREBID_STACK_NAME"
     echo "     - Prebid Server ECS tasks and services"
     echo "     - Application Load Balancer"
@@ -193,7 +196,6 @@ if [ "$PREBID_STACK_EXISTS" = "true" ]; then
     echo "     - Glue ETL jobs"
     echo "     - Lambda functions"
     echo "     - RTB Fabric Requester Gateway (if deployed)"
-    echo "     - RTB Fabric Link (if deployed)"
     echo ""
 fi
 
@@ -227,15 +229,23 @@ if [ "$DRY_RUN" = "true" ]; then
     exit 0
 fi
 
-# Step 5: Delete Fabric Link before stack destruction
+# Step 5: Delete the RTB Fabric Link before stack destruction.
+# The Fabric Link is managed outside CloudFormation. A Fabric Link can stay in a
+# PENDING state while it is being deleted, and a link left behind that way blocks
+# deletion of the stack that owns its gateway. Deleting it first with the external
+# script, before any stack is destroyed, avoids that failure mode.
 if [ "$PREBID_STACK_EXISTS" = "true" ]; then
     print_step "Deleting Fabric Link (if exists)..."
-    pip install -q -r "$PROJECT_ROOT/deployment/requirements-fabric-link.txt" 2>&1 | grep -v "already satisfied" || true
-    python3 "$PROJECT_ROOT/deployment/simulator_fabric_link.py" delete \
+    set +e
+    "$PROJECT_ROOT/deployment/simulator-fabric-link.sh" delete \
         --stack-name "$PREBID_STACK_NAME" \
         ${AWS_PROFILE:+--profile "$AWS_PROFILE"} \
-        ${AWS_REGION:+--region "$AWS_REGION"} || \
+        ${AWS_REGION:+--region "$AWS_REGION"}
+    LINK_DELETE_EXIT=$?
+    set -e
+    if [ $LINK_DELETE_EXIT -ne 0 ]; then
         print_warn "Fabric Link deletion failed or no link exists (continuing)"
+    fi
     echo ""
 fi
 
@@ -243,7 +253,7 @@ fi
 print_step "Starting stack destruction..."
 echo ""
 
-# Destroy PrebidServerStack first (includes RTB Fabric Requester Gateway and Link)
+# Destroy PrebidServerStack first (includes RTB Fabric Requester Gateway; the Link was deleted in Step 5)
 if [ "$PREBID_STACK_EXISTS" = "true" ]; then
     print_info "Destroying $PREBID_STACK_NAME..."
     print_info "This may take 10-15 minutes..."
@@ -291,7 +301,7 @@ if [ "$SIMULATOR_STACK_EXISTS" = "true" ]; then
     echo ""
 fi
 
-# Step 7: Verify all stacks are destroyed
+# Step 6: Verify all stacks are destroyed
 print_step "Verifying stack destruction..."
 
 VERIFICATION_FAILED="false"
@@ -312,7 +322,7 @@ if [ "$VERIFICATION_FAILED" = "true" ]; then
     exit 1
 fi
 
-# Step 8: Success message
+# Step 7: Success message
 echo ""
 print_info "=========================================="
 print_info "All stacks successfully destroyed!"

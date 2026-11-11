@@ -1,1 +1,7 @@
+# simulator_fabric_link.py uses boto3 for CloudFormation/SSM/ECS, and shells out
+# to the AWS CLI for RTB Fabric operations (the rtbfabric service is not in the
+# pinned boto3/botocore service catalog, so a boto3 client raises UnknownServiceError;
+# the AWS CLI ships its own service model that recognizes rtbfabric). The CLI is
+# therefore a hard runtime dependency — declare it so `pip install -r` provides it.
 boto3>=1.43.0
+awscli>=1.43.0

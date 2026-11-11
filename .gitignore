@@ -6,6 +6,7 @@
 **/build-s3-assets
 **/open-source
 **/tmp
+**/build
 
 ### Python ###
 # Byte-compiled / optimized / DLL files
@@ -44,7 +45,7 @@ source/.coverage.*
 **/.DS_Store
 
 # CDK
-**/cdk.out
+**/cdk.out*
 
 # Glue
 .glue/*
@@ -102,3 +103,15 @@ source/infrastructure/custom_resources/docker_configs_bucket_lambda/*
 dist
 node_modules
 package-lock.json
+# Keep the TypeScript CDK lockfile tracked for reproducible installs.
+# Some build environments copy the tree with an rsync that does not honor "!" negation,
+# so they must include this file explicitly.
+!source/infrastructure/package-lock.json
+
+parity
+
+# jest coverage output
+source/infrastructure/coverage/
+
+# ASH scan output (config .ash/.ash.yaml is tracked; results are not)
+.ash/ash_output/

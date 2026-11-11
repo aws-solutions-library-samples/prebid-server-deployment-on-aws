@@ -80,15 +80,15 @@ python test-auction-amt.py --help
 
 The bidder simulator uses Application Load Balancer (ALB), and Lambda to respond to bid requests from Prebid Server. This architecture enables both direct internet access and RTB Fabric integration.
 
-### Bidder Type Selection
+### Deploying the Bidder Simulator
 
-Select the bidder type during deployment:
+The bidder simulator is the `BiddingServerSimulator` CDK stack (defined in
+`source/infrastructure/lib/bidder_simulator/bidder-simulator-stack.ts`). Deploy it
+together with Prebid Server using the `deploy.sh` script:
 
 ```bash
-cd source/loadtest/bidder_simulator
-
-# For load testing
-cdk deploy
+# from the repo root
+./deploy.sh --deploy-bidding-simulator --profile <your-profile> --region <your-region>
 ```
 
 ### Bid Response Format

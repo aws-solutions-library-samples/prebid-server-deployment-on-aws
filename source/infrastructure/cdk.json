@@ -1,38 +1,32 @@
 {
-    "app": "python3 app.py",
-    "watch": {
-        "include": [
-            "**"
-        ],
-        "exclude": [
-            "README.md",
-            "cdk*.json",
-            "requirements*.txt",
-            "source.bat",
-            "**/__init__.py",
-            "**/__pycache__",
-            "python/__pycache__",
-            "tests"
-        ]
-    },
-    "context": {
-        "@aws-cdk/aws-apigateway:usagePlanKeyOrderInsensitiveId": true,
-        "@aws-cdk/core:stackRelativeExports": true,
-        "@aws-cdk/aws-rds:lowercaseDbIdentifier": true,
-        "@aws-cdk/aws-lambda:recognizeVersionProps": true,
-        "@aws-cdk/aws-cloudfront:defaultSecurityPolicyTLSv1.2_2021": true,
-        "@aws-cdk-containers/ecs-service-extensions:enableDefaultLogDriver": true,
-        "@aws-cdk/aws-ec2:uniqueImdsv2TemplateName": true,
-        "@aws-cdk/core:target-partitions": [
-            "aws",
-            "aws-cn"
-        ],
-        "@aws-cdk/aws-s3:serverAccessLogsUseBucketPolicy": true,
-        "SOLUTION_NAME": "Guidance for Deploying a Prebid Server on AWS",
-        "SOLUTION_ID": "SO0248",
-        "SOLUTION_VERSION": "v1.4.0",
-        "METRICS_NAMESPACE": "prebid-server-deployment-on-aws-metrics",
-        "BUCKET_NAME": "BUCKET_NAME",
-        "deployBiddingSimulator": false
-    }
+  "app": "npx ts-node app.ts",
+  "watch": {
+    "include": ["**"],
+    "exclude": [
+      "README.md",
+      "cdk*.json",
+      "**/*.d.ts",
+      "**/*.js",
+      "node_modules",
+      "dist",
+      "cdk.out"
+    ]
+  },
+  "context": {
+    "@aws-cdk/aws-apigateway:usagePlanKeyOrderInsensitiveId": true,
+    "@aws-cdk/core:stackRelativeExports": true,
+    "@aws-cdk/aws-rds:lowercaseDbIdentifier": true,
+    "@aws-cdk/aws-lambda:recognizeVersionProps": true,
+    "@aws-cdk/aws-cloudfront:defaultSecurityPolicyTLSv1.2_2021": true,
+    "@aws-cdk-containers/ecs-service-extensions:enableDefaultLogDriver": true,
+    "@aws-cdk/aws-ec2:uniqueImdsv2TemplateName": true,
+    "@aws-cdk/core:target-partitions": ["aws", "aws-cn"],
+    "@aws-cdk/aws-s3:serverAccessLogsUseBucketPolicy": true,
+    "SOLUTION_NAME": "Guidance for Deploying a Prebid Server on AWS",
+    "SOLUTION_ID": "SO0248",
+    "SOLUTION_VERSION": "v2.0.0",
+    "METRICS_NAMESPACE": "prebid-server-deployment-on-aws-metrics",
+    "BUCKET_NAME": "BUCKET_NAME",
+    "deployBiddingSimulator": "false"
+  }
 }

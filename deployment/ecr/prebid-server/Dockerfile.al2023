@@ -1,0 +1,111 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# AL2023 variant of the Prebid Server Java Dockerfile.
+# Uses Amazon Corretto base image (pre-approved for BATS) instead of Alpine.
+
+# Build stage
+FROM public.ecr.aws/amazoncorretto/amazoncorretto:21-al2023 AS build
+
+# Build argument to control AMT bidder file inclusion
+ARG INCLUDE_AMT_BIDDER=false
+
+# Install required dependencies
+RUN dnf install -y \
+        maven \
+        git \
+        jq \
+        binutils \
+        bash \
+    && dnf clean all
+
+# Set JAVA_HOME (Corretto base image sets this, but be explicit)
+ENV JAVA_HOME=/usr/lib/jvm/java-21-amazon-corretto
+ENV PATH="${JAVA_HOME}/bin:${PATH}"
+
+# Create custom JRE
+RUN $JAVA_HOME/bin/jlink \
+    --add-modules java.base,java.logging,java.xml,java.naming,java.desktop,java.management,java.security.jgss,java.instrument,jdk.unsupported,\
+java.net.http,java.security.sasl,jdk.naming.dns,jdk.crypto.ec,jdk.security.auth \
+    --strip-debug \
+    --no-man-pages \
+    --no-header-files \
+    --compress=2 \
+    --output /custom-java-runtime
+
+# Copy source build configuration file
+COPY docker-build-config.json docker-build-config.json
+
+# Copy extra-modules
+COPY extra-modules extra-modules/
+
+# Copy amt-bidder
+COPY amt-bidder amt-bidder/
+
+# Clone and build in single layer to reduce size
+RUN git clone --single-branch --branch master --depth 1 $(jq -r .GIT_REPO_URL ./docker-build-config.json) && \
+    cd prebid-server-java && \
+    git fetch origin --tags && \
+    git checkout $(jq -r .GIT_TAG_VERSION ../docker-build-config.json) && \
+    test -z "$(git ls-files -u)" || (echo "Merge conflict detected!" && exit 1) && \
+    cp -rv ../extra-modules/log-module-reporter/psdoa src/main/java/org/prebid/server/analytics/reporter/ && \
+    cp -rv ../extra-modules/log-module-reporter/config/* src/main/java/org/prebid/server/spring/config/ && \
+    mkdir -p /src/test/java/org/prebid/server/analytics/reporter/psdoa/ && \
+    cp -rv ../extra-modules/log-module-reporter/test/PsdoaAnalyticsReporterTest.java /src/test/java/org/prebid/server/analytics/reporter/psdoa/ && \
+    if [ "$INCLUDE_AMT_BIDDER" = "true" ]; then \
+        cp -r ../amt-bidder . && \
+        chmod +x ../amt-bidder/copy-bidder-files.sh && \
+        ../amt-bidder/copy-bidder-files.sh ; \
+    fi && \
+    mvn clean package $(jq -r .MVN_CLI_OPTIONS ../docker-build-config.json) && \
+    rm -rf ~/.m2/ && rm -rf /tmp/*
+
+# Deploy image
+FROM public.ecr.aws/amazonlinux/amazonlinux:2023-minimal AS deploy
+WORKDIR /prebid-server-java
+
+# Copy only the minimal required files
+COPY --from=build /prebid-server-java/target/*.jar ./target/
+COPY --from=build /prebid-server-java/sample ./sample
+COPY --from=build /custom-java-runtime /usr/lib/jvm/java-custom
+COPY bootstrap.sh ../bootstrap.sh
+RUN chmod 755 ../bootstrap.sh
+
+# Set up Java environment and create necessary symlinks
+ENV JAVA_HOME=/usr/lib/jvm/java-custom
+ENV PATH="${JAVA_HOME}/bin:${PATH}"
+RUN mkdir -p /usr/bin && \
+    ln -s ${JAVA_HOME}/bin/java /usr/bin/java && \
+    ln -s ${JAVA_HOME}/bin/jps /usr/bin/jps
+
+# Install only required packages
+# Explicitly upgrade curl/libcurl (curl-minimal/libcurl-minimal ship in the AL2023 base and
+# are pulled in transitively). A plain `dnf install` does not force-upgrade already-present
+# base packages, and a cached base layer can carry a stale curl, so upgrade explicitly to
+# stay ahead of the out-of-SLA curl CVEs tracked in ticket V2359008412 (parity with
+# Dockerfile.alpine's curl upgrade).
+RUN dnf install -y \
+        awscli-2 \
+        bind-utils \
+        openssl \
+    && dnf upgrade -y curl-minimal libcurl-minimal \
+    && dnf clean all
+
+# Set JVM options for DNS resolution
+ENV JAVA_OPTS="\
+    -Dvertx.disableDnsResolver=true \
+    -Djava.net.preferIPv4Stack=true \
+    -Dnetworkaddress.cache.ttl=60 \
+    -Dnetworkaddress.cache.negative.ttl=10 \
+    -Dsun.net.inetaddr.ttl=60 \
+    -Dvertx.nettyDnsResolverRefreshInterval=60 \
+    -Dhttps.protocols=TLSv1.2,TLSv1.3 \
+    -Djavax.net.ssl.trustStoreType=PKCS12 \
+    -Dcom.sun.jndi.ldap.object.disableEndpointIdentification=true \
+    -Djdk.tls.client.protocols=TLSv1.2,TLSv1.3"
+
+# Expose ports for the Prebid Server Java application
+EXPOSE 8443 8060
+
+# Set the entrypoint to execute the bootstrap script
+ENTRYPOINT ["sh", "../bootstrap.sh"]

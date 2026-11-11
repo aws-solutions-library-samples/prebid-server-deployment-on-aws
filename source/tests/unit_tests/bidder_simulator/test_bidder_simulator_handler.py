@@ -1,15 +1,17 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
-
 import json
 import os
 import sys
-import pytest
-from unittest.mock import patch
 
 # Add the handler to the path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../../loadtest/bidder_simulator/lambdas/loadtest_bidder"))
-
+sys.path.insert(
+    0,
+    os.path.join(
+        os.path.dirname(__file__),
+        "../../../loadtest/bidder_simulator/lambdas/loadtest_bidder",
+    ),
+)
 from handler import parse_bid_request, build_dynamic_response, replace_urls_with_cloudfront
 
 
@@ -115,6 +117,53 @@ class TestBuildDynamicResponse:
         crids = [b["crid"] for b in bids]
         # Should cycle through the 3 video creatives
         assert len(set(crids)) == 3
+
+
+class TestBannerBidDimensionMatching:
+    """
+    Banner bid dimension matching (KNOWN ITEM, task 5.2, Req 2.3).
+
+    The handler matches a banner bid's w/h to the impression's requested
+    banner.format (preferred) or banner.w/banner.h, rather than always
+    echoing the static creative dimensions.
+    """
+
+    def test_banner_matches_format_dimensions(self):
+        request = {
+            "id": "fmt",
+            "imp": [{"id": "b1", "banner": {"format": [{"w": 728, "h": 90}]}}]
+        }
+        bid = build_dynamic_response(request)["seatbid"][0]["bid"][0]
+        assert bid["w"] == 728
+        assert bid["h"] == 90
+
+    def test_banner_matches_wh_dimensions_when_no_format(self):
+        request = {
+            "id": "wh",
+            "imp": [{"id": "b1", "banner": {"w": 970, "h": 250}}]
+        }
+        bid = build_dynamic_response(request)["seatbid"][0]["bid"][0]
+        assert bid["w"] == 970
+        assert bid["h"] == 250
+
+    def test_banner_format_takes_precedence_over_wh(self):
+        request = {
+            "id": "prec",
+            "imp": [{"id": "b1", "banner": {"format": [{"w": 300, "h": 600}], "w": 728, "h": 90}}]
+        }
+        bid = build_dynamic_response(request)["seatbid"][0]["bid"][0]
+        assert bid["w"] == 300
+        assert bid["h"] == 600
+
+    def test_banner_falls_back_to_creative_dimensions(self):
+        # No format and no w/h on the banner -> use the static creative's size
+        request = {
+            "id": "fallback",
+            "imp": [{"id": "b1", "banner": {}}]
+        }
+        bid = build_dynamic_response(request)["seatbid"][0]["bid"][0]
+        assert bid["w"] == 300
+        assert bid["h"] == 250
 
 
 class TestReplaceUrlsWithCloudfront:

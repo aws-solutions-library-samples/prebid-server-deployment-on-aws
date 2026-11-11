@@ -191,6 +191,8 @@ eval $(aws ecs describe-task-definition \
   
 export TEST_AWS_REGION=$default_region
 export TEST_AWS_PROFILE=$profile
+# PREBID_STACK_NAME (not STACK_NAME) because pytest.ini reserves STACK_NAME via pytest-env.
+export PREBID_STACK_NAME="$stack_name"
 
 TEST_FILE_NAME=./${TEST_FILE_NAME-}
 
